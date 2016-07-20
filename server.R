@@ -20,12 +20,13 @@ shinyServer(function(input, output) {
     inFile <- input$your_data
     if(is.null(inFile)) return(NULL)
     data = read.csv(inFile$datapath,row.names = 1)
-    data = cbind(Row.names = rownames(data), data)
+   # data = cbind(Row.names = rownames(data), data)
     return(data)
   },options = list(pageLength = 10))
   
   # get data summary
   output$summary <- renderPrint({
+    if(is.null(input$your_data)) return(NULL)
     dataset <- read.csv(input$your_data$datapath,row.names = 1)
     summary(dataset)
   })
@@ -120,12 +121,14 @@ shinyServer(function(input, output) {
   
   #select regression variables for correlation matrix
   output$iv1 = renderUI({
+    if(is.null(input$your_data)) return(NULL)
     data = read.csv(input$your_data$datapath,row.names = 1)
     checkboxGroupInput('iv1', h5('Input Variables'), choices = colnames(data),selected = colnames(data))
   })
   
   #function computing correlation matrix
   corr_mat <- reactive({
+    if(is.null(input$your_data)) return(NULL)
     data = read.csv(input$your_data$datapath,row.names = 1)
     d <- data[,input$iv1]
     cor <- as.data.frame(round(cor(d), 2))
@@ -142,11 +145,13 @@ shinyServer(function(input, output) {
 
   #select input regression variables for fitting model
   output$iv2 = renderUI({
+    if(is.null(input$your_data)) return(NULL)
     data = read.csv(input$your_data$datapath,row.names = 1)
     checkboxGroupInput('iv2', h5('Input Variables'), choices = colnames(data),selected = colnames(data)[2])
   })
   # select output regression variable for fitting model
   output$dv <- renderUI({
+    if(is.null(input$your_data)) return(NULL)
     data = read.csv(input$your_data$datapath,row.names = 1)
     # drop down selection
     selectInput(inputId = "dv", 
@@ -166,18 +171,22 @@ shinyServer(function(input, output) {
     }
   })
   
-  # bivariate model
+  # multivariate model
   model <- reactive({
     lm(regFormula(), data = read.csv(input$your_data$datapath,row.names = 1))
   })
   
-  # bivariate model
+  # multivariate model
   output$model <- renderPrint({
+    if(is.null(input$dv)) return(NULL)
+    if(is.null(input$iv2)) return(NULL)
     summary(model())
   })
 
-  # bivariate model properties
+  # multivariate model properties
   output$model_plot <- renderPlot({
+    if(is.null(input$dv)) return(NULL)
+    if(is.null(input$iv2)) return(NULL)
     par(mfrow=c(2,2))
     plot(model())
   })
@@ -187,7 +196,7 @@ shinyServer(function(input, output) {
     selectInput(inputId = "nfolds", 
                 label = "Number of CV folds",
                 choices= c('5','10','LOOCV'), 
-                selected = '10')
+                selected = '5')
   })
   
   # fix random seed
@@ -195,21 +204,43 @@ shinyServer(function(input, output) {
     textInput(inputId="seed", label="Random seed (for reproducible research)", value = "42")
   })
   
+  # function to draw fold ID
+  drawFold <- reactive({
+    if(is.null(input$seed)) return(NULL)
+    if(is.null(input$your_data)) return(NULL)
+    if(is.null(input$nfolds)) return(NULL)
+    
+    set.seed(as.integer(input$seed))
+    nfolds = as.integer(input$nfolds)
+    data = read.csv(input$your_data$datapath,row.names = 1)
+    return(sample(1:nfolds,nrow(data),replace=TRUE))
+  })
+  
+  
+  #draw data table with different colors for CV folds
   output$CVtable <- DT::renderDataTable({
     #load data
     inFile <- input$your_data
     if(is.null(inFile)) return(NULL)
+    if(is.null(input$nfolds)) return(NULL)
+  
     data = read.csv(inFile$datapath,row.names = 1)
-    
-    if(input$nfolds != 'LOOCV'){ #get random folds
-      nfolds = as.integer(input$nfolds)
-      set.seed(as.integer(input$seed))
-      foldId = sample(1:nfolds,nrow(data),replace=TRUE)
-      data = cbind(Folds = foldId ,Row.names = rownames(data), data)
-      datatable(data
-      )%>%
-        formatStyle('Folds', 'Folds', backgroundColor = styleEqual(1:10, c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5" ,"#D9D9D9" ,"#BC80BD")))
 
+    if(input$nfolds != 'LOOCV'){ 
+      #get random folds
+      nfolds = as.integer(input$nfolds)
+      
+      foldId = drawFold()
+      data = cbind(Folds = foldId, data)
+      data = datatable(data)
+    #  )%>% 
+      #######
+      # TODO: find a better fix
+        if(nfolds == 5 ){
+          formatStyle(data,'Folds', backgroundColor = styleEqual(1:5, c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3")))
+        }else{
+          formatStyle(data,'Folds', backgroundColor = styleEqual(c(paste('',1:9),"10"), c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5" ,"#D9D9D9" ,"#BC80BD")))
+        }
     }else{
       datatable(data)
     }
