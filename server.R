@@ -119,6 +119,79 @@ shinyServer(function(input, output) {
     
   })
   
+  # select nfolds for cross-validation
+  output$nfolds <- renderUI({
+    selectInput(inputId = "nfolds", 
+                label = "Number of CV folds",
+                choices= c('5','10','LOOCV'), 
+                selected = '5')
+  })
+  
+  # fix random seed
+  output$seed <- renderUI({
+    textInput(inputId="seed", label="Random seed (for reproducible research)", value = "42")
+  })
+  
+  # function to draw fold ID
+  drawFold <- reactive({
+    if(is.null(input$seed)){ 
+      seed = 42
+    }else{
+      seed = as.integer(input$seed)
+    }
+    set.seed(seed)
+    
+    if(is.null(input$your_data)) return(NULL)
+    data = read.csv(input$your_data$datapath,row.names = 1)
+    
+    if(is.null(input$nfolds)){
+      nfolds = 5
+    }else{
+      if(input$nfolds != 'LOOCV'){
+        nfolds = as.integer(input$nfolds)
+      }else{
+        nfolds = nrow(data)
+        return(sample(1:nfolds,nrow(data),replace=FALSE))
+      }
+    }
+    
+    return(sample(1:nfolds,nrow(data),replace=TRUE))
+
+  })
+  
+  
+  #draw data table with different colors for CV folds
+  output$CVtable <- DT::renderDataTable({
+    #load data
+    inFile <- input$your_data
+    if(is.null(inFile)) return(NULL)
+    if(is.null(input$nfolds)) return(NULL)
+    
+    data = read.csv(inFile$datapath,row.names = 1)
+    
+    if(input$nfolds != 'LOOCV'){ 
+      #get random folds
+      nfolds = as.integer(input$nfolds)
+      
+      foldId = drawFold()
+      data = cbind(Folds = foldId, data)
+      data = datatable(data)
+      #  )%>% 
+      #######
+      # TODO: find a better fix
+      if(nfolds == 5 ){
+        formatStyle(data,'Folds', backgroundColor = styleEqual(1:5, c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3")))
+      }else{
+        formatStyle(data,'Folds', backgroundColor = styleEqual(c(paste('',1:9),"10"), c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5" ,"#D9D9D9" ,"#BC80BD")))
+      }
+    }else{
+      foldId = drawFold()
+      data = cbind(Folds = foldId, data)
+      data = datatable(data)
+      data
+    }
+  }) 
+  
   #select regression variables for correlation matrix
   output$iv1 = renderUI({
     if(is.null(input$your_data)) return(NULL)
@@ -191,59 +264,81 @@ shinyServer(function(input, output) {
     plot(model())
   })
   
-  # select nfolds for cross-validation
-  output$nfolds <- renderUI({
-    selectInput(inputId = "nfolds", 
-                label = "Number of CV folds",
-                choices= c('5','10','LOOCV'), 
-                selected = '5')
+  
+  # get alpha values
+  # min
+  output$alpha_min <- renderUI({
+    textInput(inputId="alpha_min", label="Min", value = "0")
+  })
+  # max
+  output$alpha_max <- renderUI({
+    textInput(inputId="alpha_max", label="Max", value = "1")
+  })
+  # step
+  output$alpha_step <- renderUI({
+    textInput(inputId="alpha_step", label="by", value = "0.05")
   })
   
-  # fix random seed
-  output$seed <- renderUI({
-    textInput(inputId="seed", label="Random seed (for reproducible research)", value = "42")
-  })
+  # Regularization part
+  # Using Cross-validated fold
   
-  # function to draw fold ID
-  drawFold <- reactive({
-    if(is.null(input$seed)) return(NULL)
-    if(is.null(input$your_data)) return(NULL)
-    if(is.null(input$nfolds)) return(NULL)
-    
-    set.seed(as.integer(input$seed))
-    nfolds = as.integer(input$nfolds)
-    data = read.csv(input$your_data$datapath,row.names = 1)
-    return(sample(1:nfolds,nrow(data),replace=TRUE))
-  })
-  
-  
-  #draw data table with different colors for CV folds
-  output$CVtable <- DT::renderDataTable({
+  cv_reg <- reactive({
     #load data
-    inFile <- input$your_data
-    if(is.null(inFile)) return(NULL)
-    if(is.null(input$nfolds)) return(NULL)
-  
-    data = read.csv(inFile$datapath,row.names = 1)
-
-    if(input$nfolds != 'LOOCV'){ 
-      #get random folds
-      nfolds = as.integer(input$nfolds)
-      
-      foldId = drawFold()
-      data = cbind(Folds = foldId, data)
-      data = datatable(data)
-    #  )%>% 
-      #######
-      # TODO: find a better fix
-        if(nfolds == 5 ){
-          formatStyle(data,'Folds', backgroundColor = styleEqual(1:5, c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3")))
-        }else{
-          formatStyle(data,'Folds', backgroundColor = styleEqual(c(paste('',1:9),"10"), c("#8DD3C7","#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3", "#FDB462", "#B3DE69", "#FCCDE5" ,"#D9D9D9" ,"#BC80BD")))
-        }
+    if(is.null(input$your_data)) return(NULL)
+    data = read.csv(input$your_data$datapath,row.names = 1)
+    #get foldId if any
+    if(is.null(input$nfolds)){
+      nfolds = 5
     }else{
-      datatable(data)
+      if(input$nfolds != 'LOOCV'){
+        nfolds = as.integer(input$nfolds)
+      }else{
+        nfolds = nrow(data)
+      }
     }
-  }) 
+    foldId = drawFold()
+    
+     #define alpha vector
+     if(is.null(input$alpha_min)) return(NULL)
+     if(is.null(input$alpha_max)) return(NULL)
+     if(is.null(input$alpha_step)) return(NULL)
+     alphas <- seq(as.numeric(input$alpha_min), as.numeric(input$alpha_max), by=as.numeric(input$alpha_step))
+
+    #define output
+    mses <- numeric(length(alphas))
+    mins <- numeric(length(alphas))
+    maxes <- numeric(length(alphas))
+
+    #loop over alpha values
+    for(i in 1:length(alphas)){
+      if(nfolds != nrow(data)){
+        cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,foldid=foldId)
+      }else{
+        #LOOCV
+        cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds)
+      }
+      loc <- which(cvfits$lambda==cvfits$lambda.min)
+      maxes[i] <- cvfits$lambda %>% max
+      mins[i] <- cvfits$lambda %>% min
+      mses[i] <- cvfits$cvm[loc]
+    }
+    this <- data.frame(mse=mses, alpha=alphas)
+    
+    plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
+      geom_point(shape=1) +
+      ylab("CV mean squared error") +
+      xlab("alpha parameter") +
+      ggtitle("model error of highest performing regularized elastic-net
+          regression as a function of alpha parameter")
+    plot1
+    
+    
+  })
+  
+  #render cv reg model
+  output$regul_model <- renderPlot({
+    cv_reg()
+  })
+  
   
 })

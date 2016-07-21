@@ -72,13 +72,26 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
       uiOutput("dv"),
       uiOutput("iv2"),
       verbatimTextOutput("model"),
+      p('Hint: you want the points on top-right plot be as close as possible from the straight line.'),
+      p('If not, you are probably not meeting linear regression assumption: outliers, homosedasticity, ...'),
       plotOutput("model_plot")
     )),
     
     tabPanel("Regularization",mainPanel(
              p('Regularization is a way to constraint your linear model and account for colinearities.'),
-             p('Common regularization methods are Ridge (L2), Lasso (L1), and Elastic-Net (L1-L2).'),
-             p('For more details, please refer to the excellent R package: glmnet.')
+             p('The general form of those optimization problems is given by:'),
+             withMathJax("$$\\min_w L(XW,Y) + \\Omega(W),$$"),
+             withMathJax("$$\\text{where } L \\text{ is a loss function, like Mean-Square Error,}$$"),
+             withMathJax("$$\\text{where } \\Omega \\text{ is a penalty function, like } (1-\\alpha)\\|.\\|_2^2 + \\alpha|.|_1,$$"),
+             p('Common regularization methods are Ridge (alpha=0), Lasso (alpha=1), and Elastic-Net (other alpha).'),
+             p('For more details, please refer to the excellent R package: glmnet.'),
+             p('First, we need to choose parameter grid for alpha:'),
+             uiOutput("alpha_min"),
+             uiOutput("alpha_max"),
+             uiOutput("alpha_step"),
+             p('Before starting to train a model, remember that one needs to apply cross-validation to diminish over-fitting.'),
+             p('Please refer to the Cross-validation section to define your folds.'),
+             plotOutput("regul_model")
              
     )),
     "Classification",
