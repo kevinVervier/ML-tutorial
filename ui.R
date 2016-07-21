@@ -86,8 +86,9 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
              p('Common regularization methods are Ridge (alpha=0), Lasso (alpha=1), and Elastic-Net (other alpha).'),
              p('For more details, please refer to the excellent R package: glmnet.'),
              p('First, we need to choose parameter grid for alpha:'),
-             uiOutput("alpha_min"),
-             uiOutput("alpha_max"),
+            # uiOutput("alpha_min"),
+             #uiOutput("alpha_max"),
+             uiOutput("alpha_range"),
              uiOutput("alpha_step"),
              p('Before starting to train a model, remember that one needs to apply cross-validation to diminish over-fitting.'),
              p('Please refer to the Cross-validation section to define your folds.'),
@@ -95,7 +96,14 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
              
     )),
     "Classification",
-    tabPanel("k-nearest neighbours"),
+    tabPanel("k-nearest neighbours",mainPanel(
+      p('The simple idea behind Nearest Neighbours approach is to predict a new example class, based on the majoritary class of its neighbours.'),
+      p('In its basic formulation, there is two tunable parameters: the number of considered neighbours (k) and the way you measure distance between examples.'),
+      uiOutput("knn"),
+      uiOutput("knn_dist"),
+      verbatimTextOutput("knn_perfs")
+      
+    )),
     tabPanel("Logistic regression"),
     tabPanel("Random forest"),
     tabPanel("Support vector machines")

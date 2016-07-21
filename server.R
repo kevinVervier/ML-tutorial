@@ -267,12 +267,17 @@ shinyServer(function(input, output) {
   
   # get alpha values
   # min
-  output$alpha_min <- renderUI({
-    textInput(inputId="alpha_min", label="Min", value = "0")
-  })
-  # max
-  output$alpha_max <- renderUI({
-    textInput(inputId="alpha_max", label="Max", value = "1")
+#   output$alpha_min <- renderUI({
+#     textInput(inputId="alpha_min", label="Min", value = "0")
+#   })
+#   # max
+#   output$alpha_max <- renderUI({
+#     textInput(inputId="alpha_max", label="Max", value = "1")
+#   })
+  output$alpha_range <- renderUI({
+    sliderInput("alpha_range", 
+              label = "Alpha values range:",
+              min = 0, max = 1, value = c(0, 1))
   })
   # step
   output$alpha_step <- renderUI({
@@ -299,11 +304,13 @@ shinyServer(function(input, output) {
     foldId = drawFold()
     
      #define alpha vector
-     if(is.null(input$alpha_min)) return(NULL)
-     if(is.null(input$alpha_max)) return(NULL)
+   #  if(is.null(input$alpha_min)) return(NULL)
+    # if(is.null(input$alpha_max)) return(NULL)
+    if(is.null(input$alpha_range)) return(NULL)
      if(is.null(input$alpha_step)) return(NULL)
-     alphas <- seq(as.numeric(input$alpha_min), as.numeric(input$alpha_max), by=as.numeric(input$alpha_step))
-
+     #alphas <- seq(as.numeric(input$alpha_min), as.numeric(input$alpha_max), by=as.numeric(input$alpha_step))
+    alphas <- seq(as.numeric(input$alpha_range[1]), as.numeric(input$alpha_range[2]), by=as.numeric(input$alpha_step))
+    
     #define output
     mses <- numeric(length(alphas))
     mins <- numeric(length(alphas))
@@ -315,7 +322,7 @@ shinyServer(function(input, output) {
         cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,foldid=foldId)
       }else{
         #LOOCV
-        cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds)
+        cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,grouped=FALSE)
       }
       loc <- which(cvfits$lambda==cvfits$lambda.min)
       maxes[i] <- cvfits$lambda %>% max
@@ -324,12 +331,31 @@ shinyServer(function(input, output) {
     }
     this <- data.frame(mse=mses, alpha=alphas)
     
+#     #get the regular linear regression LOOCV
+#     errors <- numeric(nrow(data))
+#     for(i in 1:nrow(data)){
+#       train <- data[-i,]
+#       test <- data[i,]
+#       kitchen.sink <- glm(paste0(colnames(data)[1],'~.'),data=train)
+#       the.pred <- predict(kitchen.sink, newdata= test)
+#       errors[i] <- (the.pred - test[1])^2
+#     }
+#     kitchen.sink = mean(errors)
+#     
+#     other.errors <- data.frame(method=c("kitchen sink"),
+#                                errors=c(kitchen.sink))
+#     
     plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
       geom_point(shape=1) +
       ylab("CV mean squared error") +
       xlab("alpha parameter") +
       ggtitle("model error of highest performing regularized elastic-net
-          regression as a function of alpha parameter")
+           regression as a function of alpha parameter")  #+ 
+#       #add kitchen sink
+#       geom_hline(aes(yintercept=errors,
+#                        color=method, group=method),
+#                    size=2, data=other.errors, show.legend=TRUE)
+    
     plot1
     
     
@@ -339,6 +365,107 @@ shinyServer(function(input, output) {
   output$regul_model <- renderPlot({
     cv_reg()
   })
+  
+  
+  ###############
+  # Classification
+  
+  #knn - choose number of neighbours
+  output$knn <- renderUI({
+    textInput(inputId="knn", label="Number of Neighbours", value = "1")
+  })
+  #knn - choose distance
+  output$knn_dist <- renderUI({
+    selectInput(inputId = "knn_dist", 
+                label = "Distance",
+                choices= c('euclidean','manhattan','maximum','canberra','binary'), 
+                selected = 'euclidean')
+  })
+  
+  #knn compute distance
+  knn_compute <- reactive({
+    #load data
+    if(is.null(input$your_data)) return(NULL)
+    data = read.csv(input$your_data$datapath,row.names = 1)
+    #get foldId if any
+    if(is.null(input$nfolds)){
+      nfolds = 5
+    }else{
+      if(input$nfolds != 'LOOCV'){
+        nfolds = as.integer(input$nfolds)
+      }else{
+        nfolds = nrow(data)
+      }
+    }
+    foldId = drawFold()
+    
+    #define alpha vector
+    if(is.null(input$knn)) return(NULL)
+    if(is.null(input$knn_dist)) return(NULL)
+    
+    #define output
+    preds <- numeric(nrow(data))
+    #compute distance matrix
+    d <- as.matrix(dist(data[,-1],method = input$knn_dist))
+    #define number of neighbours
+    k = as.integer(input$knn) 
+    
+    #init preds vector
+    preds = rep(0,nrow(data))
+    
+    #loop over folds
+    for(i in 1:nfolds){
+      idx = which(foldId == i)
+      
+      # init
+      n = length(idx)
+      knn.mat = matrix(0, ncol = k, nrow = n)
+      p <- NULL
+      #loop over test
+      for(j in 1:n){
+        knn.mat[j,] = order(d[idx[j],-idx])[1:k]
+        labels = data[-idx,1][knn.mat[j,]]
+        tmp = table(labels)
+        nties = length(which(tmp == max(tmp)))
+        if(nties == 1){
+          p <- c(p,names(which.max(tmp)))
+        }else{
+          p <- c(p,sample(x = names(tmp[which(tmp == max(tmp))]),size = 1))
+        }
+      }
+      preds[idx] = p
+    }
+    return(list('ref'=data[,1],'preds'=preds))
+  })
+  
+  #render cv reg model
+  output$knn_perfs <- renderPrint({
+    if(is.null(input$knn_dist)) return(NULL)
+    if(is.null(input$knn)) return(NULL)
+    perfs = knn_compute()
+    cm = as.matrix(table(Actual = perfs$ref, Predicted = perfs$preds)) # create the confusion matrix
+    cat('Confusion matrix:\n')
+    print(cm)
+    n = sum(cm) # number of instances
+    nc = nrow(cm) # number of classes
+    diag = diag(cm) # number of correctly classified instances per class 
+    rowsums = apply(cm, 1, sum) # number of instances per class
+    colsums = apply(cm, 2, sum) # number of predictions per class
+    p = rowsums / n # distribution of instances over the actual classes
+    q = colsums / n # distribution of instances over the predicted classes
+    accuracy = sum(diag) / n #accuracy
+    cat('Accuracy:\n')
+    print(accuracy)
+    
+    #per-class information
+    precision = diag / colsums 
+    recall = diag / rowsums 
+    f1 = 2 * precision * recall / (precision + recall) 
+    cat('Per-class information:\n')
+    print(data.frame(precision, recall, f1)) 
+    
+  })
+  
   
   
 })
