@@ -14,5 +14,4 @@ TODO:
 
 * The 'Classification' part is under development.
 * Consider different performance measures if binary or multiclass classification is considered
-* Display selected features in Regularized Linear/Logistic Regression
-* Show Feature importance in Random Forest
+* Include standard SVM kernels
