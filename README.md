@@ -8,7 +8,7 @@ Important: if you plan to run the Shiny application, you want to install the fol
 * ggplot2: nice graphical tool
 * RColorBrewer: nice color palette
 * randomForest: package for learning ... random forest model
-
+* LiblineaR: one of numerous SVM R packages
 
 TODO:
 
