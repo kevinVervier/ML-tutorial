@@ -80,7 +80,7 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
     tabPanel("Regularization",mainPanel(
              p('Regularization is a way to constraint your linear model and account for colinearities.'),
              p('The general form of those optimization problems is given by:'),
-             withMathJax("$$\\min_w L(XW,Y) + \\Omega(W),$$"),
+             withMathJax("$$\\min_w L(Xw,Y) + \\Omega(w),$$"),
              withMathJax("$$\\text{where } L \\text{ is a loss function, like Mean-Square Error,}$$"),
              withMathJax("$$\\text{where } \\Omega \\text{ is a penalty function, like } (1-\\alpha)\\|.\\|_2^2 + \\alpha|.|_1,$$"),
              p('Common regularization methods are Ridge (alpha=0), Lasso (alpha=1), and Elastic-Net (other alpha).'),
@@ -104,7 +104,21 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
       verbatimTextOutput("knn_perfs")
       
     )),
-    tabPanel("Logistic regression"),
+    tabPanel("Logistic regression",mainPanel(
+      p('Logistic regression is a transformation of the standard linear regression for classification purpose.'),
+      p('Because linear regression does not have a constraint on predicted values, it could return, for instance, negative probabilites.'),
+      p('Logistic regression is simply considering a "logit" transformation that keeps every prediction between 0 and 1 (for binary classification),'),
+      p('which corresponds to the following problem:'),
+      withMathJax("$$P(Y_i=y | X_i) =  \\frac{e^{X_iw}}{1+e^{X_iw}}$$"),
+      p('Therefore, this panel is very similar to the "Regression/Penalization" panel.'),
+      uiOutput("alpha_range_log"),
+      uiOutput("alpha_step_log"),
+      p('Before starting to train a model, remember that one needs to apply cross-validation to diminish over-fitting.'),
+      p('Please refer to the Cross-validation section to define your folds.'),
+      plotOutput("log_regul_model_plot"),
+      verbatimTextOutput("log_regul_model_perfs")
+      
+    )),
     tabPanel("Random forest"),
     tabPanel("Support vector machines")
   )

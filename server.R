@@ -438,7 +438,7 @@ shinyServer(function(input, output) {
     return(list('ref'=data[,1],'preds'=preds))
   })
   
-  #render cv reg model
+  #compute knn performance
   output$knn_perfs <- renderPrint({
     if(is.null(input$knn_dist)) return(NULL)
     if(is.null(input$knn)) return(NULL)
@@ -466,6 +466,115 @@ shinyServer(function(input, output) {
     
   })
   
+  #Logistic regression
+  output$alpha_range_log <- renderUI({
+    sliderInput("alpha_range_log", 
+                label = "Alpha values range:",
+                min = 0, max = 1, value = c(0, 1))
+  })
+  # step
+  output$alpha_step_log <- renderUI({
+    textInput(inputId="alpha_step_log", label="by", value = "0.05")
+  })
   
+  
+  cv_log_reg <- reactive({
+    #load data
+    if(is.null(input$your_data)) return(NULL)
+    data = read.csv(input$your_data$datapath,row.names = 1)
+    #get foldId if any
+    if(is.null(input$nfolds)){
+      nfolds = 5
+    }else{
+      if(input$nfolds != 'LOOCV'){
+        nfolds = as.integer(input$nfolds)
+      }else{
+        nfolds = nrow(data)
+      }
+    }
+    foldId = drawFold()
+    
+    #define alpha vector
+
+    if(is.null(input$alpha_range_log)) return(NULL)
+    if(is.null(input$alpha_step_log)) return(NULL)
+    alphas <- seq(as.numeric(input$alpha_range_log[1]), as.numeric(input$alpha_range_log[2]), by=as.numeric(input$alpha_step_log))
+    
+    #define output
+    mses <- numeric(length(alphas))
+    mins <- numeric(length(alphas))
+    maxes <- numeric(length(alphas))
+    
+    #loop over alpha values
+    for(i in 1:length(alphas)){
+      if(nfolds != nrow(data)){
+        cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,foldid=foldId,family='multinomial',type.measure="class") #including binomial case
+      }else{
+        #LOOCV
+        cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,grouped=FALSE,family='multinomial',type.measure="class")
+      }
+      loc <- which(cvfits$lambda==cvfits$lambda.min)
+      maxes[i] <- cvfits$lambda %>% max
+      mins[i] <- cvfits$lambda %>% min
+      mses[i] <- cvfits$cvm[loc]
+    }
+    this <- data.frame(mse=mses, alpha=alphas)
+    
+    plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
+      geom_point(shape=1) +
+      ylab("misclassification error (%)") +
+      xlab("alpha parameter") +
+      ggtitle("model error of highest performing regularized elastic-net
+           logistic regression as a function of alpha parameter")
+   # plot1
+   
+   #get best model among alpha-range
+    best.alpha = alphas[which.min(mses)]
+    #retrain model with best_alpha
+    if(nfolds != nrow(data)){
+      cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=best.alpha, nfolds=nfolds,foldid=foldId,family='multinomial',type.measure="class") #including binomial case
+    }else{
+      #LOOCV
+      cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=best.alpha, nfolds=nfolds,grouped=FALSE,family='multinomial',type.measure="class")
+    }
+    
+    #get preds
+    preds = predict(cvfits, newx = as.matrix(data[,-1]), s = "lambda.min",type='class')
+    
+    return(list('ref'=data[,1],'pred'=preds,'cv.perfs'=plot1,'best_alpha'=best.alpha))
+    
+  })
+  
+  #render cv Log-reg model
+  output$log_regul_model_plot <- renderPlot({
+    res = cv_log_reg()
+    res$cv.perfs
+  })
+  
+  #render best Log-reg model performances
+  output$log_regul_model_perfs <- renderPrint({
+    perfs = cv_log_reg()
+    cat('Those performances have been obtained with parameter alpha =',perfs$best_alpha,'\n')
+    cm = as.matrix(table(Actual = perfs$ref, Predicted = perfs$pred)) # create the confusion matrix
+    cat('Confusion matrix:\n')
+    print(cm)
+    n = sum(cm) # number of instances
+    nc = nrow(cm) # number of classes
+    diag = diag(cm) # number of correctly classified instances per class 
+    rowsums = apply(cm, 1, sum) # number of instances per class
+    colsums = apply(cm, 2, sum) # number of predictions per class
+    p = rowsums / n # distribution of instances over the actual classes
+    q = colsums / n # distribution of instances over the predicted classes
+    accuracy = sum(diag) / n #accuracy
+    cat('Accuracy:\n')
+    print(accuracy)
+    
+    #per-class information
+    precision = diag / colsums 
+    recall = diag / rowsums 
+    f1 = 2 * precision * recall / (precision + recall) 
+    cat('Per-class information:\n')
+    print(data.frame(precision, recall, f1)) 
+  })
   
 })
