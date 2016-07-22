@@ -6,45 +6,51 @@ library(glmnet)
 library(DT)
 
 shinyServer(function(input, output) {
+  
+  #read data function
+  read_dataset <- reactive({
+    read.csv(input$your_data$datapath,row.names = 1)
+  })
+  
   # selected data set
   output$text1 <- renderText({ 
     paste("You have selected ", input$your_data[1],".",sep='')
   })
   # print data dimensions
   output$text_dim <- renderText({ 
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     paste(dim(data)[1], "rows and", dim(data)[2],"columns.")
   })
   # load and plot the data
   output$contents <- renderDataTable({
     inFile <- input$your_data
     if(is.null(inFile)) return(NULL)
-    data = read.csv(inFile$datapath,row.names = 1)
-   # data = cbind(Row.names = rownames(data), data)
+    data = read_dataset()#read.csv(inFile$datapath,row.names = 1)
+    # data = cbind(Row.names = rownames(data), data)
     return(data)
   },options = list(pageLength = 10))
   
   # get data summary
   output$summary <- renderPrint({
     if(is.null(input$your_data)) return(NULL)
-    dataset <- read.csv(input$your_data$datapath,row.names = 1)
+    dataset <- read_dataset()
     summary(dataset)
   })
   
   #warning message if PCA tried with regression problem
- output$warning_reg <-renderText({
-   data = read.csv(input$your_data$datapath,row.names = 1)
-   if(length(unique(data[,1])) > 20) paste("Warning: Your dataset seems to be related to a regression problem (or have more than 20 classes)! No PCA then...")
- })
-    
+  output$warning_reg <-renderText({
+    data = read_dataset()
+    if(length(unique(data[,1])) > 20) paste("Warning: Your dataset seems to be related to a regression problem (or have more than 20 classes)! No PCA then...")
+  })
+  
   # create pca object
   pca_objects <- reactive({
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     pca_output <- prcomp(data[,-1], 
                          center = TRUE, 
                          scale. = TRUE)
     return(list(pcs_df = cbind(data[,-1],pca_output$x),
-      pca_output = pca_output,
+                pca_output = pca_output,
                 grouping=factor(data[,1])))
   })
   
@@ -84,16 +90,16 @@ shinyServer(function(input, output) {
                                                        input$the_pcs_to_plot_y, 
                                                        fill = groups, 
                                                        colour = groups
-    )) + 
-      stat_ellipse(geom = "polygon", alpha = 0.1) +
-      
-      theme_bw(base_size = 14) +
-      scale_colour_discrete(guide = FALSE) +
-      guides(fill = guide_legend(title = "groups")) +
-      theme(legend.position="top") +
-      coord_equal() +
-      xlab(paste0(input$the_pcs_to_plot_x, " (", var_expl_x, "% explained variance)")) +
-      ylab(paste0(input$the_pcs_to_plot_y, " (", var_expl_y, "% explained variance)")) 
+      )) + 
+        stat_ellipse(geom = "polygon", alpha = 0.1) +
+        
+        theme_bw(base_size = 14) +
+        scale_colour_discrete(guide = FALSE) +
+        guides(fill = guide_legend(title = "groups")) +
+        theme(legend.position="top") +
+        coord_equal() +
+        xlab(paste0(input$the_pcs_to_plot_x, " (", var_expl_x, "% explained variance)")) +
+        ylab(paste0(input$the_pcs_to_plot_y, " (", var_expl_y, "% explained variance)")) 
     }else{
       pc_plot_groups  <- ggplot(tmp$pcs_df, aes_string(input$the_pcs_to_plot_x, 
                                                        input$the_pcs_to_plot_y
@@ -142,7 +148,7 @@ shinyServer(function(input, output) {
     set.seed(seed)
     
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     
     if(is.null(input$nfolds)){
       nfolds = 5
@@ -156,7 +162,7 @@ shinyServer(function(input, output) {
     }
     
     return(sample(1:nfolds,nrow(data),replace=TRUE))
-
+    
   })
   
   
@@ -167,7 +173,7 @@ shinyServer(function(input, output) {
     if(is.null(inFile)) return(NULL)
     if(is.null(input$nfolds)) return(NULL)
     
-    data = read.csv(inFile$datapath,row.names = 1)
+    data = read_dataset()
     
     if(input$nfolds != 'LOOCV'){ 
       #get random folds
@@ -195,14 +201,15 @@ shinyServer(function(input, output) {
   #select regression variables for correlation matrix
   output$iv1 = renderUI({
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
-    checkboxGroupInput('iv1', h5('Input Variables'), choices = colnames(data),selected = colnames(data))
+    data = read_dataset()
+    checkboxGroupInput('iv1', h5('Input Variables'), choices = colnames(data),selected = colnames(data)[-1])
   })
   
   #function computing correlation matrix
   corr_mat <- reactive({
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    if(is.null(input$iv1)) return(NULL)
+    data = read_dataset()
     d <- data[,input$iv1]
     cor <- as.data.frame(round(cor(d), 2))
     cor <- cbind(Variables = rownames(cor), cor)
@@ -215,17 +222,17 @@ shinyServer(function(input, output) {
     corr_mat()
   })
   
-
+  
   #select input regression variables for fitting model
   output$iv2 = renderUI({
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     checkboxGroupInput('iv2', h5('Input Variables'), choices = colnames(data),selected = colnames(data)[2])
   })
   # select output regression variable for fitting model
   output$dv <- renderUI({
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     # drop down selection
     selectInput(inputId = "dv", 
                 label = "Output Variable",
@@ -246,7 +253,7 @@ shinyServer(function(input, output) {
   
   # multivariate model
   model <- reactive({
-    lm(regFormula(), data = read.csv(input$your_data$datapath,row.names = 1))
+    lm(regFormula(), data = read_dataset())
   })
   
   # multivariate model
@@ -255,7 +262,7 @@ shinyServer(function(input, output) {
     if(is.null(input$iv2)) return(NULL)
     summary(model())
   })
-
+  
   # multivariate model properties
   output$model_plot <- renderPlot({
     if(is.null(input$dv)) return(NULL)
@@ -264,20 +271,11 @@ shinyServer(function(input, output) {
     plot(model())
   })
   
-  
-  # get alpha values
-  # min
-#   output$alpha_min <- renderUI({
-#     textInput(inputId="alpha_min", label="Min", value = "0")
-#   })
-#   # max
-#   output$alpha_max <- renderUI({
-#     textInput(inputId="alpha_max", label="Max", value = "1")
-#   })
+  #alpha range slider
   output$alpha_range <- renderUI({
     sliderInput("alpha_range", 
-              label = "Alpha values range:",
-              min = 0, max = 1, value = c(0, 1))
+                label = "Alpha values range:",
+                min = 0, max = 1, value = c(0, 1))
   })
   # step
   output$alpha_step <- renderUI({
@@ -290,7 +288,7 @@ shinyServer(function(input, output) {
   cv_reg <- reactive({
     #load data
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     #get foldId if any
     if(is.null(input$nfolds)){
       nfolds = 5
@@ -303,19 +301,17 @@ shinyServer(function(input, output) {
     }
     foldId = drawFold()
     
-     #define alpha vector
-   #  if(is.null(input$alpha_min)) return(NULL)
-    # if(is.null(input$alpha_max)) return(NULL)
+    #define alpha vector
     if(is.null(input$alpha_range)) return(NULL)
-     if(is.null(input$alpha_step)) return(NULL)
-     #alphas <- seq(as.numeric(input$alpha_min), as.numeric(input$alpha_max), by=as.numeric(input$alpha_step))
+    if(is.null(input$alpha_step)) return(NULL)
+    
     alphas <- seq(as.numeric(input$alpha_range[1]), as.numeric(input$alpha_range[2]), by=as.numeric(input$alpha_step))
     
     #define output
     mses <- numeric(length(alphas))
     mins <- numeric(length(alphas))
     maxes <- numeric(length(alphas))
-
+    
     #loop over alpha values
     for(i in 1:length(alphas)){
       if(nfolds != nrow(data)){
@@ -331,33 +327,32 @@ shinyServer(function(input, output) {
     }
     this <- data.frame(mse=mses, alpha=alphas)
     
-#     #get the regular linear regression LOOCV
-#     errors <- numeric(nrow(data))
-#     for(i in 1:nrow(data)){
-#       train <- data[-i,]
-#       test <- data[i,]
-#       kitchen.sink <- glm(paste0(colnames(data)[1],'~.'),data=train)
-#       the.pred <- predict(kitchen.sink, newdata= test)
-#       errors[i] <- (the.pred - test[1])^2
-#     }
-#     kitchen.sink = mean(errors)
-#     
-#     other.errors <- data.frame(method=c("kitchen sink"),
-#                                errors=c(kitchen.sink))
-#     
+    #     #get the regular linear regression LOOCV
+    #     errors <- numeric(nrow(data))
+    #     for(i in 1:nrow(data)){
+    #       train <- data[-i,]
+    #       test <- data[i,]
+    #       kitchen.sink <- glm(paste0(colnames(data)[1],'~.'),data=train)
+    #       the.pred <- predict(kitchen.sink, newdata= test)
+    #       errors[i] <- (the.pred - test[1])^2
+    #     }
+    #     kitchen.sink = mean(errors)
+    #     
+    #     other.errors <- data.frame(method=c("kitchen sink"),
+    #                                errors=c(kitchen.sink))
+    #     
     plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
       geom_point(shape=1) +
       ylab("CV mean squared error") +
       xlab("alpha parameter") +
       ggtitle("model error of highest performing regularized elastic-net
            regression as a function of alpha parameter")  #+ 
-#       #add kitchen sink
-#       geom_hline(aes(yintercept=errors,
-#                        color=method, group=method),
-#                    size=2, data=other.errors, show.legend=TRUE)
+    #       #add kitchen sink
+    #       geom_hline(aes(yintercept=errors,
+    #                        color=method, group=method),
+    #                    size=2, data=other.errors, show.legend=TRUE)
     
     plot1
-    
     
   })
   
@@ -386,7 +381,7 @@ shinyServer(function(input, output) {
   knn_compute <- reactive({
     #load data
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     #get foldId if any
     if(is.null(input$nfolds)){
       nfolds = 5
@@ -481,7 +476,7 @@ shinyServer(function(input, output) {
   cv_log_reg <- reactive({
     #load data
     if(is.null(input$your_data)) return(NULL)
-    data = read.csv(input$your_data$datapath,row.names = 1)
+    data = read_dataset()
     #get foldId if any
     if(is.null(input$nfolds)){
       nfolds = 5
@@ -495,7 +490,7 @@ shinyServer(function(input, output) {
     foldId = drawFold()
     
     #define alpha vector
-
+    
     if(is.null(input$alpha_range_log)) return(NULL)
     if(is.null(input$alpha_step_log)) return(NULL)
     alphas <- seq(as.numeric(input$alpha_range_log[1]), as.numeric(input$alpha_range_log[2]), by=as.numeric(input$alpha_step_log))
@@ -526,9 +521,9 @@ shinyServer(function(input, output) {
       xlab("alpha parameter") +
       ggtitle("model error of highest performing regularized elastic-net
            logistic regression as a function of alpha parameter")
-   # plot1
-   
-   #get best model among alpha-range
+    # plot1
+    
+    #get best model among alpha-range
     best.alpha = alphas[which.min(mses)]
     #retrain model with best_alpha
     if(nfolds != nrow(data)){
