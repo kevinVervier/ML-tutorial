@@ -6,6 +6,7 @@ Important: if you plan to run the Shiny application, you want to install the fol
 * glmnet
 * DT
 * ggplot2
+* randomForest
 
 
 TODO:
