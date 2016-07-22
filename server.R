@@ -4,6 +4,9 @@
 library(shiny)
 library(glmnet)
 library(DT)
+library(randomForest)
+library(LiblineaR)
+library(RColorBrewer)
 
 shinyServer(function(input, output) {
   
@@ -309,8 +312,6 @@ shinyServer(function(input, output) {
     
     #define output
     mses <- numeric(length(alphas))
-    mins <- numeric(length(alphas))
-    maxes <- numeric(length(alphas))
     
     #loop over alpha values
     for(i in 1:length(alphas)){
@@ -321,8 +322,6 @@ shinyServer(function(input, output) {
         cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,grouped=FALSE)
       }
       loc <- which(cvfits$lambda==cvfits$lambda.min)
-      maxes[i] <- cvfits$lambda %>% max
-      mins[i] <- cvfits$lambda %>% min
       mses[i] <- cvfits$cvm[loc]
     }
     this <- data.frame(mse=mses, alpha=alphas)
@@ -352,15 +351,38 @@ shinyServer(function(input, output) {
     #                        color=method, group=method),
     #                    size=2, data=other.errors, show.legend=TRUE)
     
-    plot1
+    #plot1
+    
+    #get best model among alpha-range
+    best.alpha = alphas[tail(which(mses == min(mses)),1)]
+    #retrain model with best_alpha
+    if(nfolds != nrow(data)){
+      cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=best.alpha, nfolds=nfolds,foldid=foldId)
+    }else{
+      #LOOCV
+      cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=best.alpha, nfolds=nfolds,grouped=FALSE)
+    }
+    
+    #get preds
+    preds = predict(cvfits, newx = as.matrix(data[,-1]), s = "lambda.min")
+    
+    return(list('ref'=data[,1],'pred'=preds,'cv.perfs'=plot1,'best_alpha'=best.alpha,'weights'=coef(cvfits, s = "lambda.min")))
+    
     
   })
   
   #render cv reg model
   output$regul_model <- renderPlot({
-    cv_reg()
+    res=cv_reg()
+    res$cv.perfs
   })
   
+  output$regul_feature_selec <- renderPrint({
+    perfs = cv_reg()
+    cat('Estimated feature weights. A dot means that the feature is not included in the model.\n')
+    cat('Those performances have been obtained with parameter alpha =',perfs$best_alpha,'\n')
+    print(perfs$weights)
+  })
   
   ###############
   # Classification
@@ -497,8 +519,6 @@ shinyServer(function(input, output) {
     
     #define output
     mses <- numeric(length(alphas))
-    mins <- numeric(length(alphas))
-    maxes <- numeric(length(alphas))
     
     #loop over alpha values
     for(i in 1:length(alphas)){
@@ -509,8 +529,6 @@ shinyServer(function(input, output) {
         cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=alphas[i], nfolds=nfolds,grouped=FALSE,family='multinomial',type.measure="class")
       }
       loc <- which(cvfits$lambda==cvfits$lambda.min)
-      maxes[i] <- cvfits$lambda %>% max
-      mins[i] <- cvfits$lambda %>% min
       mses[i] <- cvfits$cvm[loc]
     }
     this <- data.frame(mse=mses, alpha=alphas)
@@ -524,7 +542,7 @@ shinyServer(function(input, output) {
     # plot1
     
     #get best model among alpha-range
-    best.alpha = alphas[which.min(mses)]
+    best.alpha = alphas[tail(which(mses == min(mses)),1)]
     #retrain model with best_alpha
     if(nfolds != nrow(data)){
       cvfits <- cv.glmnet(x=as.matrix(data[,-1]), y=data[,1], alpha=best.alpha, nfolds=nfolds,foldid=foldId,family='multinomial',type.measure="class") #including binomial case
@@ -536,7 +554,7 @@ shinyServer(function(input, output) {
     #get preds
     preds = predict(cvfits, newx = as.matrix(data[,-1]), s = "lambda.min",type='class')
     
-    return(list('ref'=data[,1],'pred'=preds,'cv.perfs'=plot1,'best_alpha'=best.alpha))
+    return(list('ref'=data[,1],'pred'=preds,'cv.perfs'=plot1,'best_alpha'=best.alpha,'weights'=coef(cvfits, s = "lambda.min")))
     
   })
   
@@ -571,5 +589,188 @@ shinyServer(function(input, output) {
     cat('Per-class information:\n')
     print(data.frame(precision, recall, f1)) 
   })
+  
+  output$log_regul_feature_selec <- renderPrint({
+    perfs = cv_log_reg()
+    cat('Estimated feature weights. A dot means that the feature is not included in the model.\n')
+    print(perfs$weights)
+  })
+  
+  #Random forest parameters
+  # ntree
+  output$ntree <- renderUI({
+    textInput(inputId="ntree", label="Number of Trees", value = "50")
+  })
+  # mtry
+  output$mtry <- renderUI({
+    data = read_dataset()
+    textInput(inputId="mtry", label="Number of variables randomly sampled", value = round(sqrt(as.integer(ncol(data) - 1)))) # sqrt(p) is an heuristic provide by L. Breiman
+  })
+  
+  #Random Forest model
+  rf_train <-reactive({
+    #load data
+    if(is.null(input$your_data)) return(NULL)
+    data = read_dataset()
+    #no need for cross-validation, because of out-of-bag error
+    
+    if(is.null(input$mtry)) return(NULL)
+    if(is.null(input$ntree)) return(NULL)
+    mtry = as.integer(input$mtry)
+    if(mtry > (ncol(data) -1)) mtry = ncol(data) - 1
+    ntree = as.integer(input$ntree)
+    
+    #loop over alpha values
+    m <- randomForest(x=as.matrix(data[,-1]), y=factor(data[,1]),ntree = ntree, mtry = mtry,proximity = TRUE,importance = TRUE)
+    oob.preds <- predict(m)
+    oob.err = sum(oob.preds != data[,1])/nrow(data)
+    
+    return(list('model'=m,'oob'=oob.err))
+    
+  })
+  
+  #render rf model
+  output$rf_plot <- renderPlot({
+    res = rf_train()
+    data = read_dataset()
+    labels = factor(data[,1])
+    
+    if(nlevels(labels) > 2){
+      MDSplot(m,labels)
+      legend("topleft", legend=levels(labels), fill=brewer.pal(length(levels(labels)), "Set1"))
+    }else{
+      MDSplot(m,labels,palette = rainbow(2))
+      legend("topleft", legend=levels(labels), fill=rainbow(2))
+    }
+  })
+  
+  #compute rf performance
+  output$rf_perfs <- renderPrint({
+    perfs = rf_train()
+    cm =perfs$m$confusion # create the confusion matrix
+    cat('Confusion matrix:\n')
+    print(cm)
+    cat('Out-of-bag error:',perfs$oob,'%\n')
+    
+  })
+  
+  #compute rf feature importance
+  output$rf_imp <- renderPrint({
+    perfs = rf_train()
+    cat('Feature importance:\n')
+    print(data.frame("Gini Index"=sort(perfs$m$importance[,1],decreasing = TRUE)))
+    
+  })
+  
+  #SVM parameters
+  # C
+  output$C_svm_range <- renderUI({
+    sliderInput("C_svm_range", 
+                label = "C values range (log10):",
+                min = -6, max = 6, value = c(-6,6))
+  })
+  # step
+  output$C_svm_step <- renderUI({
+    textInput(inputId="C_svm_step", label="by", value = "1")
+  })
+  
+  # type
+  output$svm_type <- renderUI({
+    data = read_dataset()
+    selectInput(inputId="svm_type", label="Loss-Regularizer combination", choices= c('L2-regul. Logistic Regression' = 0,
+                                                                                     'L2-regul. Hinge' = 2,
+                                                                                     'L1-regul. Hinge' = 5,
+                                                                                     'L1-regul. Logistic Regression' = 6), selected = 0)
+  })
+  
+  
+  
+  cv_svm <- reactive({
+    #load data
+    if(is.null(input$your_data)) return(NULL)
+    data = read_dataset()
+    #get foldId if any
+    if(is.null(input$nfolds)){
+      nfolds = 5
+    }else{
+      if(input$nfolds != 'LOOCV'){
+        nfolds = as.integer(input$nfolds)
+      }else{
+        nfolds = nrow(data)
+      }
+    }
+    
+    #define C vector
+    if(is.null(input$C_svm_range)) return(NULL)
+    if(is.null(input$C_svm_step)) return(NULL)
+    if(is.null(input$svm_type)) return(NULL)
+    Cs <- 10^seq(as.numeric(input$C_svm_range[1]), as.numeric(input$C_svm_range[2]), by=as.numeric(input$C_svm_step))
+    
+    #define output
+    mses <- numeric(length(Cs))
+    
+    #loop over C values
+    for(i in 1:length(Cs)){
+      m = LiblineaR(data = data[,-1],target = factor(data[,1]),type=as.integer(input$svm_type),cost=Cs[i],cross=nfolds)
+      mses[i] <- 1- m
+    }
+    this <- data.frame(mse=mses, alpha=Cs)
+    
+    plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
+      geom_point(shape=1) + scale_x_log10() +
+      ylab("misclassification error (%)") +
+      xlab("C parameter") +
+      ggtitle("model error of highest performing SVM as a function of C parameter")
+    
+    #get best model among alpha-range
+    best_C = Cs[which.min(mses)]
+    #need foldIds to do the final model training
+    foldId = drawFold()
+    
+    #init preds vector
+    preds = rep(0,nrow(data))
+    #loop over folds
+    for(i in 1:nfolds){
+      idx = which(foldId == i)
+      m = LiblineaR(data = data[-idx,-1],target = factor(data[-idx,1]),type=as.integer(input$svm_type),cost=best_C)
+      preds[idx] = predict(m,data[idx,-1],proba= FALSE)$predictions
+    }
+    
+    return(list('ref'=factor(data[,1]),'pred'= preds,'cv.perfs'=plot1,'best_C'=best_C))
+    
+  })
+  
+  #render cv Log-reg model
+  output$svm_plot <- renderPlot({
+    res = cv_svm()
+    res$cv.perfs
+  })
+  
+  #render best Log-reg model performances
+  output$svm_perfs <- renderPrint({
+    perfs = cv_svm()
+    cat('Those performances have been obtained with parameter C =',perfs$best_C,'\n')
+    cm = as.matrix(table(Actual = perfs$ref, Predicted = perfs$pred)) # create the confusion matrix
+    cat('Confusion matrix:\n')
+    print(cm)
+    n = sum(cm) # number of instances
+    nc = nrow(cm) # number of classes
+    diag = diag(cm) # number of correctly classified instances per class 
+    rowsums = apply(cm, 1, sum) # number of instances per class
+    colsums = apply(cm, 2, sum) # number of predictions per class
+    p = rowsums / n # distribution of instances over the actual classes
+    q = colsums / n # distribution of instances over the predicted classes
+    accuracy = sum(diag) / n #accuracy
+    cat('Accuracy:\n')
+    print(accuracy)
+    
+    #per-class information
+    precision = diag / colsums 
+    recall = diag / rowsums 
+    f1 = 2 * precision * recall / (precision + recall) 
+    cat('Per-class information:\n')
+    print(data.frame(precision, recall, f1)) 
+  })
+  
   
 })

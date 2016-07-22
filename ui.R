@@ -92,7 +92,8 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
              uiOutput("alpha_step"),
              p('Before starting to train a model, remember that one needs to apply cross-validation to diminish over-fitting.'),
              p('Please refer to the Cross-validation section to define your folds.'),
-             plotOutput("regul_model")
+             plotOutput("regul_model"),
+            verbatimTextOutput("regul_feature_selec")
              
     )),
     "Classification",
@@ -116,11 +117,33 @@ shinyUI(fluidPage(#theme = "bootstrap.css",
       p('Before starting to train a model, remember that one needs to apply cross-validation to diminish over-fitting.'),
       p('Please refer to the Cross-validation section to define your folds.'),
       plotOutput("log_regul_model_plot"),
-      verbatimTextOutput("log_regul_model_perfs")
+      verbatimTextOutput("log_regul_model_perfs"),
+      verbatimTextOutput("log_regul_feature_selec")
       
     )),
-    tabPanel("Random forest"),
-    tabPanel("Support vector machines")
+    tabPanel("Random forest",mainPanel(
+      p('Random forest is a popular machine learning technique relying on the training of a large number of decision trees (ntree parameter).'),
+      p('The prediction process occurs by majority vote, where each tree returns its own prediction.'),
+      p('To allow diversity in the different trees, we usually rely on sub-sampling the predictors/features (mtry parameter).'),
+      uiOutput("ntree"),
+      uiOutput("mtry"),
+      plotOutput("rf_plot"),
+      verbatimTextOutput("rf_perfs"),
+      verbatimTextOutput("rf_imp")
+      
+    )),
+    tabPanel("Support vector machines",mainPanel(
+      p('Support Vector Machine (SVM) is one of the most popular linear machine-learning approach.'),
+      p('It aims at finding the best hyperplane separating data from different classes in the input space.'),
+      p('Because, most of the time, classes are not strictly separable, SVM offers a trade-off between fitting the data and allowing some points to be misclassified (C parameter).'),
+      p('As a regularized linear model, it is possible to consider different loss functions (Hinge, Logistic) and regularizers (L1, L2).'),
+      uiOutput("C_svm_range"),
+      uiOutput("C_svm_step"),
+      uiOutput("svm_type"),
+      plotOutput("svm_plot"),
+      verbatimTextOutput("svm_perfs")
+      
+    ))
   )
   
 ))
