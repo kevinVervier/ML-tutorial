@@ -5,18 +5,377 @@ date: "July 26, 2016"
 output: html_document
 ---
 
+
+```{r ,message=FALSE, echo=FALSE}
+#package installation block
+if("devtools" %in% rownames(installed.packages()) == FALSE) {install.packages("devtools")}
+library(devtools)
+#nice pca
+if("ggbiplot" %in% rownames(installed.packages()) == FALSE) {install_github("ggbiplot", "vqv")}
+library(ggbiplot)
+#stepwise feature selection
+if("MASS" %in% rownames(installed.packages()) == FALSE) {install.packages("MASS")}
+library(MASS)
+```
+
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Topics
 
-```{r}
-summary(cars)
+- Statistics: inference to obtain valid conclusions from data under various assumptions
+- Computer Science: efficient algorithm development, data manipulation
+- Intersection $\Rightarrow$ Machine learning: takes the <b><span style="color:#6495ED">past</span></b> data, tries to find some rules, regularities in the data in order to make predictions for the future observations.
+
+
+## Preparing the data
+First, one needs to load the data set to study. Usually, there is observations in row and attributes in column.
+Given the format of your data file, you may choose different `read.` functions (e.g., `read.csv`,`read.table`,...).
+
+<b>Important</b>: for the whole tutorial, we assume that the first column of the data is the response variable.
+
+For demonstration purpose, we will use a very popular data set: Edgar Anderson's Iris Data (`iris`).
+
+This dataset is based a collection of 5 measurements (petal/sepal length/width and stem length) obtained on 15X iris flowers, belonging to 3 different species. In addition, some simulated data have been added in this version.
+
+Here, one question could be: <b> Given those measurements on a new flower, is it possible to predict its corresponding species ?</b>
+```{r }
+x <- read.csv('../data/iris.csv')
+head(x,10)
+```
+### Descriptive statistics
+
+
+* Check for predictor with a too small variance, that might not be helpful.
+
+```{r }
+summary(x)
 ```
 
-You can also embed plots, for example:
+* Describe variables variation and univariate analysis to get a sense of what could be the important predictors and correlation.
 
-```{r, echo=FALSE}
-plot(cars)
+```{r }
+#'pairs' function does scatterplots for each pair of variables and use labels for color.
+pairs(x[2:ncol(x)], main = "Correlation between variables", pch = 21, bg = c("red", "green3", "blue")[unclass(x[,1])])
+
+# you could also use 'cor' function to compute the correlation matrix
+cor(x[,2:ncol(x)])
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+* It seems that <b> stem_length </b> is not very informative (low overall variation and no correlation with labels). We will exclude it for the rest of the study.
+
+```{r }
+x$stem_length = NULL
+```
+
+* It is generally a good idea to check for outliers in the data (due to typo, technical noise,...) via Principal Component Analysis (PCA). 
+    * This technique is a simple way to represent high-dimensional data in only 2 dimensions.
+    * PCA looks for the best linear combination of variables to define new variables, encompassing as much variance as possible.
+    * In general and to keep things comparable, it is a good idea to <b> scale </b> each variable to be centered in <b> 0</b> and with a variance of <b> 1 </b>. Especially, if different variabales have different units.
+    
+```{r }
+labels <- x[,1]
+obs <- x[,-1]
+# 'prcomp' is the Principal Component function in R.
+res.pca <- prcomp(obs,
+                 center = TRUE,
+                 scale. = TRUE) 
+# See PCA results in summary
+print(res.pca)
+
+# Plot the 2 first PCs
+g <- ggbiplot(res.pca , obs.scale = 1, var.scale = 1, 
+              groups = labels)
+g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal', 
+               legend.position = 'top')
+print(g)
+```
+
+It seems that we have an outlier belonging to Setosa species. It is preferable to keep it apart from the analysis, while investigating the reason of this measure. 
+
+```{r }
+x = x[-1,]
+```
+NB: Outlier detection is a whole field of research and there is more advanced techniques to test wether or not an observation is an outlier.
+
+This is how it looks <b> after outlier filtering </b>.
+```{r ,message=FALSE, echo=FALSE }
+labels <- x[,1]
+obs <- x[,-1]
+# 'prcomp' is the Principal Component function in R.
+res.pca <- prcomp(obs,
+                 center = TRUE,
+                 scale. = TRUE) 
+
+# Plot the 2 first PCs
+g <- ggbiplot(res.pca , obs.scale = 1, var.scale = 1, 
+              groups = labels)
+g <- g + scale_color_discrete(name = '')
+g <- g + theme(legend.direction = 'horizontal', 
+               legend.position = 'top')
+print(g)
+```
+
+* Is there any missing data ? There is a whole research field dedicated to how to deal with missing data.
+    * Missing data raises its own question: do you want to skip any example with 1 missing data ? Does missing data contain useful information (pattern) ?
+
+
+### Feature engineering (some examples)
+* Sometimes, raw measurements are not the most suitable to use.
+* For very high/low values, considering a (negative) Logarithm transform is a way to scale your data.
+* If two variables seems highly correlated, you may want to delete one of them.
+* From qualitative features to dummy variables: If some predictors are qualitative (finite number of possible values), it is usually better to create dummy variables to represent the different possible values.
+    * From one predictor with $L$ possible levels to $(L-1)$ binary predictors.
+
+### Scaling the data
+
+* Different predictors may have been measured in different units
+* Most of learning approaches are sensible to effect size
+* For those two main reasons, we usually apply a scale function on the data set
+    * Common way: each predictor is rescaled to have a average value = 0 (centered) and a standard deviation equal to 1 (scaled) --> `scale` function in R
+```{r }
+obs = scale(obs,center= TRUE, scale= TRUE)
+obs = data.frame(obs) # convert scaled object to data.frame for convenience
+```
+
+Now that the dataset has been cleaned, it would be easier for us to train our first machine learning model.
+
+## Supervised and Unsupervised learning
+
+People often consider two kinds of machine learning approaches, depending on the avaibility of labels/ground truth.
+
+### Supervised learning
+Examples: 
+
+* Customize an email spam detection system.
+* Identify the numbers in a handwritten zip code.
+* Estimate gene expression level based on multiple SNPs alleles ([geno2expr](https://github.com/kevinVervier/geno2expr-ML) approach)
+* Classify an individual into one of several diagnosis classes, based on multiple phenotypic measurements.
+
+Idea: 
+
+* Outcome/response/target measurement $Y$
+    * In a regression problem, $Y$ is a quantitative variable (e.g., price, gene expression).
+    * In a classification problem, $Y$ takes values in a finite set (spam/ham, digit 0-9, cancer class).
+* Input/predictor/feature/covariate measurement vector $X$
+
+Based on training data which are pairs $(xi,yi)$, we are interested in i) accurately predicting unseen test cases, ii) understanding which inputs affect the output, iii) assessing the quality of our predictions.
+
+NB: it is important to understand the simpler approaches first and to know how to accurately assess performances of different methods in order to select the best model.
+
+### Unsupervised learning
+
+* Here, no outcome variable, just the set of predictors measured on a set of samples.
+* Objective could be to find groups of samples that behave similarly, find features that behave similarly,...
+* Difficult to know how well your are doing
+* Clustering
+
+## Statistical learning - Machine learning
+
+* Machine learning arose as a subfield of Artificial Intelligence and has a greater emphasis on large scale applications and prediction accuracy.
+* Statistical Learning arose as a subfield of Statistics and emphasizes models and their interpretability, and precision and uncertainty.
+* More and more accepted that those terms refer to the same thing.
+* Known Machine Learning <b> trade-offs </b>:
+    * Prediction accuracy versus interpretability: linear models are easy to interpret, but usually are not the best performers
+    * Good fit versus overfitting: overfitting the training data decreases the generalization of the model
+    * Parsimony versus black-box: number of predictors in the model
+
+## Linear Regression
+
+* Simple approach for supervised learning that assumes a linear dependence between $Y$ and $X$, meaning that there exists constant weights $w_i$ for each predictor, such as $Y = w_0 + w_1\times X_1 + ... + \epsilon$, where $\epsilon$ is a random noise that is not captured by the predictors.
+* This approach works well when $Y$ is a numeric variable.
+* Although it may seem overly simplistic, linear regression is extremely useful both conceptually and practically.
+* Parameters estimation by least squares reduction: minimizing residuals between ground truth and fitted values.
+
+![Source: http://gerardnico.com/wiki/data_mining/residual](tutorial_slides-figure/statistics_residual.jpg)
+
+
+```{r }
+# Here, we will change a bit our data set, because the original Iris problem is not a regression one, but a classification problem (see later).
+# Let say that we are interested in predicting the Sepal length (column 1) of a flower, given the Sepal Width.
+
+fit <- lm(sepal_length ~ sepal_width, data = obs) # 'lm' stands for Linear Model.
+summary(fit)
+
+```
+
+* To test if there is a relationship between one predictor and the outcome, we could compute a t-statistic and apply a threshold on the p-value.
+    * Fortunately, it is already done in `lm` $\Rightarrow$ look for the stars in the <b> pvalue </b> column (right).
+* Accuracy of the fit is measured using $R^2$, also provided by `lm`. It can help for model comparison.
+```{r }
+# Here, we will consider the 3 variables as predictors.
+fit <- lm(sepal_length ~ ., data = obs) # '.' stands for all the other variables 
+summary(fit)
+
+```
+
+* NB: In its simplest version, linear regression does not test correlation between predictors, which could induce confusion when interpreting coefficients (here, Petal length and width).
+    * In case of correlation between predictors, it is usually a good idea to consider _interactions_ between features as additional features.
+
+<b> Congrats ! You just trained your first model ! </b>
+but...
+
+* What about the trade-offs we discussed earlier, especially the generalization ? 
+* How evaluate your model performances on future data ?
+
+
+## Model Selection and Regularization
+
+### Bias-Variance trade-off
+
+### Train/Validation/Test and Cross-validation
+
+* It is important to <b> not use the training error </b> as a performance measure (overfitting)
+* The test error is the average error obtained on a new observations set, not used in the training step.
+* Hold-out a subset of the training observations from the fitting process and estimate test error on it.
+* Here is how to use Train/Validation/Test rule of thumb:
+    * Consider 60% of your data for fitting model
+    * 20% of the remaining data are used as validation set, especially if there is parameter optimization needed
+    * the last 20% of the data are the test/hold-out data, only used when the final model is fitted and estimates test error
+    * Main drawback: usually highly depends of the considered random split (need several repeats)
+   
+```{r }
+
+# Code for a train/validation/test split and evaluation
+
+trainValTestLM <-function(seed = 42){
+  set.seed(seed) # fix random seed for reproducible results
+  # Generate random index
+  idx = sample(c('train','validation','test'),nrow(obs),replace=TRUE,prob = c(0.6,0.2,0.2))
+  # Sanity check
+  #table(idx)
+
+  # split X
+  X.train = obs[which(idx == 'train'),]
+  X.val = obs[which(idx == 'validation'),]
+  X.test = obs[which(idx == 'test'),]
+
+  # Fit model with only sepal width predictor
+  fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
+  # Fit model with all predictors
+  fit2 <- lm(sepal_length ~ ., data = X.train)
+
+  # Evaluate both models on validation
+  preds1 = predict(fit1,X.val)
+  preds2 = predict(fit2,X.val)
+  
+  # One performance measure is the correlation between actual and predicted values:
+  # Model 1
+  cor1 = cor(X.val[,1],preds1)
+  # Model 2
+  cor2 = cor(X.val[,1],preds2)
+
+  
+  #select best model
+  if( cor1 > cor2 ){
+    best.model = fit1
+    best = 1
+  }else{
+    best.model = fit2
+    best = 2
+  }
+  
+  # Do test prediction
+  preds.test = predict(best.model,X.test)
+  return(list('best.model' = best, 'model1' = fit1, 'model2' = fit2, 'val.perfs.1' = cor1, 'val.perfs.2' = cor2,'test.perfs' = cor(X.test[,1],preds.test)))
+  
+}
+
+#Call function
+results = trainValTestLM(seed = 42)
+```
+```{r, echo = FALSE}
+cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
+cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
+cat('Model', results$best.model,'performance on Test set:',results$test.perfs,'\n')
+
+```
+
+Again, you may need to <b> repeat this process </b> (by changing the random seed) to assess model variability as a function of the random split (~50-100X), before applying on test.
+
+![Source: http://images.slideplayer.com/17/5305651/slides/slide_14.jpg](tutorial_slides-figure/train_val_test.jpg) 
+    
+    
+* An alternative: $K$-fold cross-validation (e.g. $K$ = 5 or 10 or LOO)
+    * randomly divide the data into $K$ equal-sized parts.
+    * loop for $k$ in 1 to $K$: leave out part $k$ and fit the model to the other $K-1$ combined parts
+    * obtain predictions on the $k$-th part
+    * get test error estimation by combining all predictions
+    * LOO stands for 'Leave-One-Out', where $K$ = `nrow(data)`.
+    
+![Source: http://bugra.github.io/work/notes/2014-11-22/an-introduction-to-supervised-learning-scikit-learn/](tutorial_slides-figure/cv.png) 
+
+```{r }
+# Code for a cross-validation evaluation
+set.seed(42) # fix random seed for reproducible results
+# Number of folds/rounds
+nfolds = 10
+# Generate random index
+idx = sample(1:nfolds,nrow(obs),replace=TRUE) # replace = FALSE if LOO
+# Sanity check
+table(idx)
+
+# Initiate vectors for storing predictions from 2 models
+preds1 = rep(0,nrow(obs))
+preds2 = rep(0,nrow(obs))
+
+# Loop/Rotation over the different folds
+for(fold in 1:nfolds){
+  #get index of test fold
+  test.idx = which(idx == fold)
+  # split train/test
+  X.test = obs[test.idx,]
+  X.train = obs[-test.idx,]
+  # Fit model with only sepal width predictor
+  fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
+  # Fit model with all predictors
+  fit2 <- lm(sepal_length ~ ., data = X.train)
+
+  # Evaluate both models on validation
+  preds1[test.idx] = predict(fit1,X.test)
+  preds2[test.idx] = predict(fit2,X.test)
+}
+
+# One performance measure is the correlation between actual and predicted values:
+# Model 1
+cor(obs[,1],preds1)
+# Model 2
+cor(obs[,1],preds2)
+
+```
+
+
+### Feature selection
+
+When dealing with multivariate data, it can be cumbersome to try every possible combination of features in your model.
+
+Good news! There is more systematic ways to select the most meaningful features in your model:
+
+* Backward/Forward selection: iteratively select the best feature subset, implying that some features are not relevant (basically, follow the stars!)
+
+* Embedded/Shrinkage approaches: feature selection during the training step, by regularizing/constraining coefficient estimates towards zero.
+    * Ridge regression ($L2$): keep all coefficients in the same range, but no selection
+    * Lasso ($L1$): force some of the coefficients to be equal to 0 --> sparse model
+    * Elastic-Net ($L1 + L2$): combination of ridge and Lasso, leading to sparse model and better handling correlated predictors
+
+
+## Classification
+
+* Here, the response $Y$ is qualitative and belongs to a finite set of labels.
+* Different algorithms with their own decision rule:
+    * k-nearest neighbours: returns label based on neighbors labels
+    * decision tree: hierarchical organization of decision rules
+    * random forest: returns label provided by a majority vote of decision trees
+    * support vector machine: maximize margin between different classes 
+* Most of the time, we are more interested into predicting the probability of a class, rather than just a class label.
+* For this reason, linear regression is not a suitable option (negative probability) --> Logistic regression
+* If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...)
+
+
+#Ressources
+
+[Hastie and Tibshirani Online course](http://www.r-bloggers.com/in-depth-introduction-to-machine-learning-in-15-hours-of-expert-videos/)
+
+[An Introduction to Statistical Learning with Applications in R](http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Sixth%20Printing.pdf)
+
+[Introduction to ML with knn applied on iris data](http://www.datacamp.com/community/tutorials/machine-learning-in-r)
