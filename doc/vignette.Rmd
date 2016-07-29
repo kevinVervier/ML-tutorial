@@ -483,8 +483,7 @@ hierarchical organization of decision rules
 ## random forest
 returns label provided by a majority vote of decision trees
 
-* Most of the time, we are more interested into predicting the probability of a class, rather than just a class label.
-* For this reason, linear regression is not a suitable option (negative probability) --> Logistic regression
+* Classification performance measures
 * If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...)
 
 <b> Meditation before concluding... </b>
