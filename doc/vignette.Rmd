@@ -131,12 +131,26 @@ print(g)
 
 Now that the dataset has been cleaned, it would be easier for us to train our first machine learning model.
 
-## Supervised and Unsupervised learning
+## Statistical learning - Machine learning
 
-People often consider two kinds of machine learning approaches, depending on the avaibility of labels/ground truth.
+* Machine learning arose as a subfield of Artificial Intelligence and has a greater emphasis on large scale applications and prediction accuracy.
+* Statistical Learning arose as a subfield of Statistics and emphasizes models and their interpretability, and precision and uncertainty.
+* More and more accepted that those terms refer to the same thing.
+* Known Machine Learning <b><span style="color:#6495ED"> trade-offs</span></b>:
+    * Prediction accuracy versus interpretability: linear models are easy to interpret, but usually are not the best performers
+    * Good fit versus overfitting: overfitting the training data decreases the generalization of the model
+    * Parsimony versus black-box: number of predictors in the model
 
-### Supervised learning
-Examples: 
+* General definition: <b> you want to find the best model/function trained on past data that will accurately predict future data. </b>
+
+## Supervised learning
+
+It refers to the case where your training data are labelled, or have an outcome value already measured.
+
+NB: unsupervised learning is another field where there is not label on the data $\Rightarrow$ clustering.
+
+
+Application of supervised learning: 
 
 * Decide which movie you might want to watch next on Netflix,
 * Identify the numbers in a handwritten zip code,
@@ -151,28 +165,12 @@ Idea:
 * Input/predictor/feature/covariate measurement vector $X$
 
 Based on <b><span style="color:#6495ED">training data</span></b> which are pairs $(xi,yi)$, we are interested in:
-  1. accurately predicting unseen test cases, 
-  2. understanding which inputs affect the output,
-  3. assessing the quality of our predictions.
 
-### Unsupervised learning
+1. accurately predicting unseen test cases, 
+2. understanding which inputs affect the output,
+3. assessing the quality of our predictions.
 
-* Here, no outcome variable, just the set of predictors measured on a set of samples.
-* Objective could be to find groups of samples that behave similarly, find features that behave similarly,...
-* Difficult to know how well your are doing
-* Clustering
 
-## Statistical learning - Machine learning
-
-* Machine learning arose as a subfield of Artificial Intelligence and has a greater emphasis on large scale applications and prediction accuracy.
-* Statistical Learning arose as a subfield of Statistics and emphasizes models and their interpretability, and precision and uncertainty.
-* More and more accepted that those terms refer to the same thing.
-* Known Machine Learning <b> trade-offs </b>:
-    * Prediction accuracy versus interpretability: linear models are easy to interpret, but usually are not the best performers
-    * Good fit versus overfitting: overfitting the training data decreases the generalization of the model
-    * Parsimony versus black-box: number of predictors in the model
-
-* General definition: <b> you want to find the best model/function trained on past data that will accurately predict future data. </b>
 
 ## Linear Regression
 
@@ -454,6 +452,7 @@ mean((obs[,1] - preds.regul)^2)
 
 Sometimes regularization is not largely outperforming standard Linear Regression, but it is worth to try it, because, **theoretically it will never do worse**. (*Quizz*: why ?)
 
+---
 # Session 2:  Classification methods
 
 * Talking about classification refers to having qualitative response $Y$ that belongs to a finite set of <b>labels/classes</b>.
