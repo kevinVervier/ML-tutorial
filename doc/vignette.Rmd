@@ -8,15 +8,19 @@ output: html_document
 
 ```{r ,message=FALSE, echo=FALSE}
 #package installation block
-if("devtools" %in% rownames(installed.packages()) == FALSE) {install.packages("devtools")}
+if("devtools" %in% rownames(installed.packages()) == FALSE) {install.packages("devtools",repos="http://cran.us.r-project.org")}
 library(devtools)
 #nice pca
 if("ggbiplot" %in% rownames(installed.packages()) == FALSE) {install_github("ggbiplot", "vqv")}
 library(ggbiplot)
 # Embedded feature selection (ridge, Lasso, Elastic-Net)
-if("glmnet" %in% rownames(installed.packages()) == FALSE) {install.packages("glmnet")}
+if("glmnet" %in% rownames(installed.packages()) == FALSE) {install.packages("glmnet",repos="http://cran.us.r-project.org")}
 library(glmnet)
+# Support Vector Machine
+if("LiblineaR" %in% rownames(installed.packages()) == FALSE) {install.packages("LiblineaR",repos="http://cran.us.r-project.org")}
+library(LiblineaR)
 ```
+
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
@@ -43,8 +47,8 @@ Here, one question could be:
 <b> Given those measurements on a new flower, is it possible to predict its corresponding species ? </b>
 
 ```{r }
-x <- read.csv('../data/iris.csv')
-head(x,10)
+data <- read.csv('../data/iris.csv',sep='\t')
+head(data,10)
 ```
 ### Descriptive statistics
 
@@ -52,23 +56,23 @@ head(x,10)
 * Check for predictor with a too <b><span style="color:#6495ED">small variance</span></b>, that might not be helpful.
 
 ```{r }
-summary(x)
+summary(data)
 ```
 
 * Describe variables variation and univariate analysis to get a sense of what could be the <b><span style="color:#6495ED">important predictors</span></b> and correlation.
 
 ```{r }
 #'pairs' function does scatterplots for each pair of variables and use labels for color.
-pairs(x[2:ncol(x)], main = "Correlation between variables", pch = 21, bg = c("red", "green3", "blue")[unclass(x[,1])])
+pairs(data[2:ncol(data)], main = "Correlation between variables", pch = 21, bg = c("red", "green3", "blue")[unclass(data[,1])])
 
 # you could also use 'cor' function to compute the correlation matrix
-cor(x[,2:ncol(x)])
+cor(data[,2:ncol(data)])
 ```
 
 * Here, it seems that the `stem_length` argument is not correlated with iris species. We could decide to exclude this feature from the study.
 
 ```{r }
-x$stem_length = NULL
+data$stem_length = NULL
 ```
 
 * It is generally a good idea to check for <b><span style="color:#6495ED">outliers</span></b> in the data (due to typo, technical noise,...) via Principal Component Analysis (<b><span style="color:#6495ED">PCA</span></b>). 
@@ -79,10 +83,10 @@ x$stem_length = NULL
     
 ```{r }
 #take species name apart
-labels <- x[,1]
+labels <- data[,1]
 # keep input variables only
-obs <- x[,-1]
-# scale data (not mandatory)
+obs <- data[,-1]
+# scale data (not mandatory), but useful for PCA
 obs = scale(obs,center= TRUE, scale= TRUE)
 obs = data.frame(obs) # convert scaled object to data.frame for convenience
 
@@ -103,16 +107,16 @@ print(g)
 It seems that we have an outlier belonging to Setosa species. It is preferable to keep it apart from the analysis, while investigating the reason of this measure. 
 
 ```{r }
-x = x[-1,]
+data = data[-1,]
 ```
 NB: Outlier detection is a whole field of research and there is more advanced techniques to test wether or not an observation is an outlier.
 
 This is how it looks <b> after outlier filtering </b>.
 ```{r ,message=FALSE, echo=FALSE }
 #take species name apart
-labels <- x[,1]
+labels <- data[,1]
 # keep input variables only
-obs <- x[,-1]
+obs <- data[,-1]
 # scale data (not mandatory)
 obs = scale(obs,center= TRUE, scale= TRUE)
 obs = data.frame(obs) # convert scaled object to data.frame for convenience
@@ -467,14 +471,45 @@ this coding implies an ordering on the outcomes. (*Quizz*) So why linear regress
 So what are the alternative solutions for classification ?
 There is two ways of thinking in classification: do you want to predict the class label and/or do you want a estimated probability of this class prediction ?
 
-In the following sections, we will review standard classification algorithms with their own strategy/decision rule.
+In the following sections, we will review standard classification algorithms with their own strategy/decision rule. For demonstration purpose, we will apply them to the `iris` data set in its standard use: ** Is it possible to predict to which species a new flower belongs ?**
 
-## Logistic regression
-Variation of linear regression returning score between 0 and 1 (class probability).
+However, we will keep things simple by considering only the first two classes $\Rightarrow$ binary classification.
+
+If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...). Most of the time, there is additional parameters to provide when you call the function, but the function name remains the same (cf function doc).
+
+```{r}
+#only keep the first 2 classes
+data = data[which(data$species == 'setosa' | data$species == 'versicolor'),]
+# re-define the levels of species column (useful ?)
+data$species = factor(data$species)
+```
+
+
+## Logistic regression (Chapter 4.3)
+* Variation of the Linear Regression for classification purpose.
+* Rather than modeling the response $Y$ directly, logistic regression models the probability (from 0 to 1) that $Y$ belongs to a particular category.
+* Here, we use a similar framework to linear regression, called Generalized Linear Model (`glmnet`):
+
+```{r}
+fit <- glmnet(x=as.matrix(data[,-1]), y=data[,1],family="binomial")
+# Here, the predict function has a 'type' argument that defines the output: 'class' returns a class name and 'probability' 
+```
+
 
 ## Support Vector Machine
-maximize margin between different classes
- 
+* maximize margin between different classes
+* There is different `R` packages for SVM, that rely on subtle variations around the main concept.
+* In this tutorial, we will use `LiblineaR` package:
+```{r}
+m <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
+# you may want to optimize 2 parameters:
+# cost determines the trade-off between the margin fit and the misclassification tolerance.
+# Advanced: 'type' parameter determines the loss and regularization functions. you can for instance do logisti regression, or use a Lasso. 
+
+```
+
+
+
 ## k-nearest neighbours
 returns label based on neighbors labels
 
@@ -483,8 +518,11 @@ hierarchical organization of decision rules
 ## random forest
 returns label provided by a majority vote of decision trees
 
-* Classification performance measures
-* If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...)
+
+## Classification performance measures
+
+
+
 
 <b> Meditation before concluding... </b>
 
@@ -493,7 +531,10 @@ Choose your data for the last session. If you have no idea on a candidate, we co
 
 # Session 3: Your turn !
 
-Here, the idea is to apply the different classification techniques to a new data set, and compare them using the evaluation framework we described in Session 1.
+Here, the idea is to apply the different classification techniques to a new data set, and compare them using the evaluation framework we described in Session 1 (parameter optimization, cross-validation, etc.)
+
+Hints:
+* Whatever the approach you use, your prediction step will often use the `predict` function.
 
 #Ressources
 
