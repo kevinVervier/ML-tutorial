@@ -378,7 +378,7 @@ Good news! There is more systematic ways to select the most meaningful features 
     * Ridge regression ($L2$): keep all coefficients in the same range, but no selection ($\Omega(w) = \sum_i w_i^2$)
     * Lasso ($L1$): force some of the coefficients to be equal to 0 $\Rightarrow$ sparse model ($\Omega(w) = \sum |w_i|$)
     * Elastic-Net ($L1 + L2$): combination of ridge and Lasso, leading to sparse model and better handling correlated predictors ($\Omega(w) = (1-\alpha)\times\mbox{Ridge} + \alpha\times\mbox{Lasso}$).
-
+    * Advanced: regularization is a research field, where one creates new set of constraints, based on known structure in the data (e.g., Group Lasso)
 
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso.png)
 
