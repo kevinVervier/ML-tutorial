@@ -21,6 +21,10 @@ library(glmnet)
 library(LiblineaR)
 # knn
 library(class)
+# decision tree
+library(rpart)
+# Random Forest
+library(randomForest)
 ```
 # Session 1 debriefing + homework 
 
@@ -189,17 +193,34 @@ m$W
 
 ## Nearest neighbours (Section 2.2.3)
 * Given a distance measure between training points, it returns label based on $K$ neighbors labels.
-
+* Is not actually training a model: the decision rule is derived from the data with no fit.
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (2.2.3).](pic/knn.png)
+* The number of neighbors $K$ considered in the neighborhood is a paramteter to tune,
+* Advanced: one may want to consider different metrics than standard Euclidean distance. (not provided by `knn`, requires an home-made function).
 
 ```{r}
-
+# DEMO #
+set.seed(42)
+# define a random training set
+sub.train = as.matrix(data[sample(1:nrow(data),100,replace=TRUE),])
+# define a random test set
+sub.test = as.matrix(data[sample(1:nrow(data),10,replace=TRUE),-1])
+# get predictions
+knn(train = sub.train[,-1], test = sub.test, cl = sub.train[,1], k = 1)
 
 ```
 
 
-## decision tree
-hierarchical organization of decision rules
+## decision tree (Section 8.1)
+* hierarchical organization of decision rules
+* prediction via stratification of the feature space $\Rightarrow$ non-linear
+![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (8.1).](pic/decision_tree.png)
+* Advanced: may require a pruning phase to avoid overfitting, which is a big issue with this approach...
+
+```{r}
+# use the same kind of formula than linear regression
+rpart(species~., data=data, method='class')
+```
 
 ## random forest
 returns label provided by a majority vote of decision trees
