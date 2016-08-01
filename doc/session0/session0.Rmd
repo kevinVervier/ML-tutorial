@@ -24,7 +24,9 @@ library(LiblineaR)
 # Random Forest
 if("randomForest" %in% rownames(installed.packages()) == FALSE) {install.packages("randomForest",repos="http://cran.us.r-project.org")}
 library(randomForest)
-
+# knn
+if("class" %in% rownames(installed.packages()) == FALSE) {install.packages("class",repos="http://cran.us.r-project.org")}
+library(class)
 ```
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:

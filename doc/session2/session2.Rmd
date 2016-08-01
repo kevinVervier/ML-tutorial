@@ -19,12 +19,14 @@ library(ggbiplot)
 library(glmnet)
 # Support Vector Machine
 library(LiblineaR)
+# knn
+library(class)
 ```
 # Session 1 debriefing + homework 
 
 First, we need to load the data we processed during the last session:
 ```{r }
-data <- read.csv('../../data/iris_processed.csv')
+data <- read.csv('data/iris_processed.csv')
 ```
 
 * Plot the sepal length as a function of iris species (*Hint*: boxplot),
@@ -179,17 +181,26 @@ text(x+1, y, labels=labs)
     * Advanced: it is possible to use 'kernel' transformation, when facing data not separable with a linear model (section 9.3.1).
     
 ```{r}
+# standard command
 m <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
+# show model weights
+m$W
+```
+
+## Nearest neighbours (Section 2.2.3)
+* Given a distance measure between training points, it returns label based on $K$ neighbors labels.
+
+![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (2.2.3).](pic/knn.png)
+
+```{r}
+
 
 ```
 
 
-
-## k-nearest neighbours
-returns label based on neighbors labels
-
 ## decision tree
 hierarchical organization of decision rules
+
 ## random forest
 returns label provided by a majority vote of decision trees
 
