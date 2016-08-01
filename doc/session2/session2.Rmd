@@ -1,0 +1,221 @@
+---
+title: "Machine Learning class: session 2"
+author: "Kevin Vervier"
+date: "August 1, 2016"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r ,message=FALSE, echo=FALSE}
+#package installation block
+library(devtools)
+#nice pca
+library(ggbiplot)
+# Embedded feature selection (ridge, Lasso, Elastic-Net)
+library(glmnet)
+# Support Vector Machine
+library(LiblineaR)
+```
+# Session 1 debriefing + homework 
+
+First, we need to load the data we processed during the last session:
+```{r }
+data <- read.csv('../../data/iris_processed.csv')
+```
+
+* Plot the sepal length as a function of iris species (*Hint*: boxplot),
+```{r}
+boxplot(sepal_length ~ species, data = data,xlab='Species',ylab='Sepal length')
+# CLearly, there is an effect.
+```
+* Add dummy (binary) variables to iris dataset that represent species (*Hint*: 2 of them are enough),
+```{r}
+# initiate
+dummy = matrix(0,nrow=nrow(data),ncol=2)
+colnames(dummy) = c('isSetosa','isVsericolor')
+dummy[which(data$species == 'setosa'),1] = 1
+dummy[which(data$species == 'versicolor'),2] = 1
+# virginica will be encoded by 0 in both columns
+
+#even if dummy variables are binary, we may want to scale them
+dummy = scale(dummy,center = TRUE,scale=TRUE)
+
+#merge both datasets
+data_with_dummy = cbind(data,dummy)
+#remove species column (redundant)
+data_with_dummy$species = NULL
+```
+
+* Fit linear model on this new data set (*Hint*: using cross-validation and regularization).
+
+```{r}
+# Code for a cross-validation evaluation
+set.seed(42) # fix random seed for reproducible results
+# Number of folds/rounds
+nfolds = 10
+# Generate random index
+idx = sample(1:nfolds,nrow(data_with_dummy),replace=TRUE)
+
+#define alpha parameter
+alphas <- seq(from = 0, to = 1, by = 0.01)
+
+#define output
+mses <- rep(0,length(alphas))
+
+#loop over alpha values
+for(i in 1:length(alphas)){
+   # cv.glmnet function does the CV loop for the different folds
+  cvfits <- cv.glmnet(x=as.matrix(data_with_dummy[,-1]), y=data_with_dummy[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) # for a given alpha, lambda is optimized inside cv.glmnet
+  preds.regul = predict(cvfits, newx = as.matrix(data_with_dummy[,-1]), s = "lambda.min")
+  mses[i] <- mean((data_with_dummy[,1] - preds.regul)^2)
+}
+this <- data.frame(mse=mses, alpha=alphas)
+
+plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
+  geom_line() +
+  ylab("CV mean squared error") +
+  xlab("alpha parameter") +
+  ggtitle("model error of highest performing regularized elastic-net
+           regression as a function of alpha parameter")
+plot1
+
+#get best model among alpha-range
+best.alpha = alphas[tail(which(mses == min(mses)),1)]
+#retrain model with best_alpha
+cvfits <- cv.glmnet(x=as.matrix(data_with_dummy[,-1]), y=data_with_dummy[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
+
+# print best parameters pair
+cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
+
+#get preds for the best (alpha,lambda) pair
+preds.regul = predict(cvfits, newx = as.matrix(data_with_dummy[,-1]), s = "lambda.min")
+#Check the best model content
+coef(cvfits, s = "lambda.min")
+
+# Simple Linear Model trained with all the features
+cor(data_with_dummy[,1],preds.regul) 
+
+#NB: session 1 best model achieved cor = 0.926916
+
+# Regularized Model
+mean((data_with_dummy[,1] - preds.regul)^2)
+#NB: session 1 best model achieved mse = 0.09592393
+
+```
+
+This concludes Homework 1. Now, Session 2 is about to start !
+
+
+
+
+# Classification methods
+
+* Talking about classification refers to having qualitative response $Y$ that belongs to a finite set of <b>labels/classes</b>.
+* Why not Liner Regression ? 
+    * Example: Suppose that we are trying to predict the medical condition of a patient in the emergency room on the basis of her symptoms, where there are only three possible diagnoses: *stroke*, *drug overdose*, and *epileptic seizure*. We could consider encoding these values as a quantitative response variable, $Y$, as follows:
+
+$$ \left\{ \begin{array}{ll} 1 & \text{ if stroke,} \\ 2 & \text{ if drug overdose,} \\ 3 & \text{ if epileptic seizure} \end{array}\right.$$
+
+Using this coding, least squares could be used to fit a linear regression model. But unfortunately,
+this coding implies an ordering on the outcomes. (*Quizz*) So why linear regression is not a good idea here ? 
+
+So what are the alternative solutions for classification ?
+There is two ways of thinking in classification: do you want to predict the class label and/or do you want a estimated probability of this class prediction ?
+
+In the following sections, we will review standard classification algorithms with their own strategy/decision rule. For demonstration purpose, we will apply them to the `iris` data set in its standard use: <b> Is it possible to predict to which species a new flower belongs ?</b>
+
+However, we will keep things simple by considering only the first two classes $\Rightarrow$ binary classification.
+
+If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...). Most of the time, there is additional parameters to provide when you call the function, but the function name remains the same (cf function doc).
+
+```{r}
+#only keep the first 2 classes
+data = data[which(data$species == 'setosa' | data$species == 'versicolor'),]
+# re-define the levels of species column (useful ?)
+data$species = factor(data$species)
+```
+
+
+## Logistic regression (Chapter 4.3)
+* Variation of the Linear Regression for classification purpose.
+* Rather than modeling the response $Y$ directly, logistic regression models the probability (from 0 to 1) that $Y$ belongs to a particular category.
+
+![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (9.2.2).](pic/logreg.png)
+
+* Here, we use a similar framework to linear regression, called Generalized Linear Model (`glmnet`):
+
+```{r}
+fit <- glmnet(x=as.matrix(data[,-1]), y=data[,1],family="binomial",alpha = 0.5)
+#see coefficients for 1 model
+coef(fit)[,7]
+# see regularization path
+plot(fit,xvar="lambda")
+grid()
+#add variable name
+L <- length(fit$lambda)
+x <- log(fit$lambda[L])
+y <- fit$beta[, L]
+labs <- names(y)
+text(x+1, y, labels=labs)
+
+```
+
+
+## Support Vector Machine (Chapter 9)
+* Try to find the best linear separation between classes.
+* It is unlikely that your real-world data are perfectly separable.
+* SVMs introduce the concept of margin between different classes and cast it in an regularization framework.
+
+![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (9.2.2).](pic/svm.png)
+
+* There is different `R` packages for SVM, that rely on subtle variations around the main concept.
+* In this tutorial, we will use `LiblineaR` package, where you may want to optimize at least 1 parameter:
+    * `cost` determines the trade-off between the margin fit and the misclassification tolerance (high value $\Rightarrow$ more tolerance),
+    * Advanced: `type` parameter determines the loss and regularization functions. you can for instance do logistic regression, or use a Lasso,
+    * Advanced: it is possible to use 'kernel' transformation, when facing data not separable with a linear model (section 9.3.1).
+    
+```{r}
+m <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
+
+```
+
+
+
+## k-nearest neighbours
+returns label based on neighbors labels
+
+## decision tree
+hierarchical organization of decision rules
+## random forest
+returns label provided by a majority vote of decision trees
+
+
+## Classification performance measures
+
+
+
+
+<b> Meditation before concluding... </b>
+
+Choose your data for the last session. If you have no idea on a candidate, we could pick one based on specific points you want to work on.
+
+
+# Session 3: Your turn !
+
+Here, the idea is to apply the different classification techniques to a new data set, and compare them using the evaluation framework we described in Session 1 (parameter optimization, cross-validation, etc.)
+
+Hints:
+* Whatever the approach you use, your prediction step will often use the `predict` function.
+
+
+#Ressources
+
+[(1) Hastie and Tibshirani Online course](http://www.r-bloggers.com/in-depth-introduction-to-machine-learning-in-15-hours-of-expert-videos/)
+
+[An Introduction to Statistical Learning with Applications in R](http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Sixth%20Printing.pdf)
+
+[Introduction to ML with knn applied on iris data](http://www.datacamp.com/community/tutorials/machine-learning-in-r)

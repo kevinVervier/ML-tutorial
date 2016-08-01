@@ -1,10 +1,13 @@
 ---
-title: "Machine Learning tutorial"
+title: "Machine Learning class: session 1"
 author: "Kevin Vervier"
-date: "July 26, 2016"
+date: "August 1, 2016"
 output: html_document
 ---
 
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r ,message=FALSE, echo=FALSE}
 #package installation block
@@ -18,9 +21,7 @@ library(LiblineaR)
 ```
 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-# Session 1: Introduction to Statistics and Machine Learning
+# Introduction to Statistics and Machine Learning
 
 - Statistics: inference to obtain valid conclusions from data under various assumptions
 - Computer Science: efficient algorithm development, data manipulation
@@ -43,7 +44,7 @@ Here, one question could be:
 <b> Given those measurements on a new flower, is it possible to predict its corresponding species ? </b>
 
 ```{r }
-data <- read.csv('../data/iris.csv')
+data <- read.csv('../../data/iris.csv')
 head(data,10)
 ```
 ### Descriptive statistics
@@ -114,7 +115,7 @@ labels <- data[,1]
 # keep input variables only
 obs <- data[,-1]
 # scale data (not mandatory)
-obs = scale(obs,center= TRUE, scale= TRUE)
+#obs = scale(obs,center= TRUE, scale= TRUE)
 obs = data.frame(obs) # convert scaled object to data.frame for convenience
 
 # 'prcomp' is the Principal Component function in R.
@@ -130,6 +131,12 @@ print(g)
 ```
 
 Now that the dataset has been cleaned, it would be easier for us to train our first machine learning model.
+We may want to save the pre-processed data set in order to load it easily in the next sessions.
+
+```{r}
+write.csv(data,file='../../data/iris_processed.csv',quote=FALSE,row.names = FALSE)
+```
+
 
 ## Statistical learning - Machine learning
 
@@ -179,7 +186,7 @@ Based on <b><span style="color:#6495ED">training data</span></b> which are pairs
 * Although it may seem overly simplistic, linear regression is extremely useful both conceptually and practically.
 * Parameters estimation by Residual Sum of Squares (RSS): minimizing residuals between ground truth and fitted values.
 
-![Source: http://gerardnico.com/wiki/data_mining/residual](tutorial_slides-figure/statistics_residual.jpg)
+![Source: http://gerardnico.com/wiki/data_mining/residual](pic/statistics_residual.jpg)
 
 
 ```{r }
@@ -217,7 +224,7 @@ but...
 * How to compare your model performances with other models ?
 
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (Fig 2.10). <b>Left</b>:
-Data simulated from a function $f$ (almost linear), shown in black. Three estimates of $f$ are shown: the linear regression line (orange curve), and two smoothing spline fits (blue and green curves). <b>Right</b>: Training MSE (grey curve), test MSE (red curve), and minimum possible test MSE over all methods (dashed line). Squares represent the training and test MSEs for the three fits shown in the left-hand panel.](tutorial_slides-figure/overfit.png)
+Data simulated from a function $f$ (almost linear), shown in black. Three estimates of $f$ are shown: the linear regression line (orange curve), and two smoothing spline fits (blue and green curves). <b>Right</b>: Training MSE (grey curve), test MSE (red curve), and minimum possible test MSE over all methods (dashed line). Squares represent the training and test MSEs for the three fits shown in the left-hand panel.](pic/overfit.png)
 
 
 ## Model Selection and Regularization
@@ -235,7 +242,7 @@ In this section, we will study how to get generalizable models, optimize method 
     * the last 20% of the data are the test/hold-out data, only used when the final model is fitted and estimates test error
     * Main drawback: usually highly depends of the considered random split (need several repeats)
    
-![Source: http://images.slideplayer.com/17/5305651/slides/slide_14.jpg](tutorial_slides-figure/train_val_test.jpg) 
+![Source: http://images.slideplayer.com/17/5305651/slides/slide_14.jpg](pic/train_val_test.jpg) 
     
     
 ```{r }
@@ -304,7 +311,7 @@ Again, you may need to <b> repeat this process </b> (by changing the random seed
     * get test error estimation by combining all predictions
     * LOO stands for 'Leave-One-Out', where $K$ = `nrow(data)`.
     
-![Source: http://bugra.github.io/work/notes/2014-11-22/an-introduction-to-supervised-learning-scikit-learn/](tutorial_slides-figure/cv.png) 
+![Source: http://bugra.github.io/work/notes/2014-11-22/an-introduction-to-supervised-learning-scikit-learn/](pic/cv.png) 
 
 ```{r }
 # Code for a cross-validation evaluation
@@ -373,12 +380,12 @@ Good news! There is more systematic ways to select the most meaningful features 
     * Elastic-Net ($L1 + L2$): combination of ridge and Lasso, leading to sparse model and better handling correlated predictors ($\Omega(w) = (1-\alpha)\times\mbox{Ridge} + \alpha\times\mbox{Lasso}$).
 
 
-![<b>Source</b>: An Introduction to Statistical Learning with Applications in R. ](tutorial_slides-figure/ridge_lasso.png)
+![<b>Source</b>: An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso.png)
 
 (*Quizz*: shape of the elastic-net "ball"?)
 
 
-Here is an example of cross-validation evaluation that deals with parameter optimization (here, $\alpha$ and $\lambda$).
+Here is an example of cross-validation evaluation that deals with parameter optimization (here, $\alpha$ and $\lambda$), using `glmnet` package.
 
 ```{r }
 # Code for a cross-validation evaluation
@@ -456,85 +463,17 @@ mean((obs[,1] - preds.regul)^2)
 
 Sometimes regularization is not largely outperforming standard Linear Regression, but it is worth to try it, because, **theoretically it will never do worse**. (*Quizz*: why ?)
 
----
-# Session 2:  Classification methods
-
-* Talking about classification refers to having qualitative response $Y$ that belongs to a finite set of <b>labels/classes</b>.
-* Why not Liner Regression ? 
-    * Example: Suppose that we are trying to predict the medical condition of a patient in the emergency room on the basis of her symptoms, where there are only three possible diagnoses: *stroke*, *drug overdose*, and *epileptic seizure*. We could consider encoding these values as a quantitative response variable, $Y$, as follows:
-
-$$ \left\{ \begin{array}{ll} 1 & \text{ if stroke,} \\ 2 & \text{ if drug overdose,} \\ 3 & \text{ if epileptic seizure} \end{array}\right.$$
-
-Using this coding, least squares could be used to fit a linear regression model. But unfortunately,
-this coding implies an ordering on the outcomes. (*Quizz*) So why linear regression is not a good idea here ? 
-
-So what are the alternative solutions for classification ?
-There is two ways of thinking in classification: do you want to predict the class label and/or do you want a estimated probability of this class prediction ?
-
-In the following sections, we will review standard classification algorithms with their own strategy/decision rule. For demonstration purpose, we will apply them to the `iris` data set in its standard use: ** Is it possible to predict to which species a new flower belongs ?**
-
-However, we will keep things simple by considering only the first two classes $\Rightarrow$ binary classification.
-
-If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...). Most of the time, there is additional parameters to provide when you call the function, but the function name remains the same (cf function doc).
-
-```{r}
-#only keep the first 2 classes
-data = data[which(data$species == 'setosa' | data$species == 'versicolor'),]
-# re-define the levels of species column (useful ?)
-data$species = factor(data$species)
-```
 
 
-## Logistic regression (Chapter 4.3)
-* Variation of the Linear Regression for classification purpose.
-* Rather than modeling the response $Y$ directly, logistic regression models the probability (from 0 to 1) that $Y$ belongs to a particular category.
-* Here, we use a similar framework to linear regression, called Generalized Linear Model (`glmnet`):
+## Homework 1 (optional)
 
-```{r}
-fit <- glmnet(x=as.matrix(data[,-1]), y=data[,1],family="binomial")
-# Here, the predict function has a 'type' argument that defines the output: 'class' returns a class name and 'probability' 
-```
+When fitting the model for estimating sepal length, we did not use the iris species as a cofactor for the linear model. But is it useful to include it ?
+
+* Plot the sepal length as a function of iris species (*Hint*: boxplot),
+* Add dummy (binary) variables to iris dataset that represent species (*Hint*: 2 of them are enough),
+* Fit linear model on this new data set (*Hint*: using cross-validation and regularization).
 
 
-## Support Vector Machine
-* maximize margin between different classes
-* There is different `R` packages for SVM, that rely on subtle variations around the main concept.
-* In this tutorial, we will use `LiblineaR` package:
-```{r}
-m <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
-# you may want to optimize 2 parameters:
-# cost determines the trade-off between the margin fit and the misclassification tolerance.
-# Advanced: 'type' parameter determines the loss and regularization functions. you can for instance do logisti regression, or use a Lasso. 
-
-```
-
-
-
-## k-nearest neighbours
-returns label based on neighbors labels
-
-## decision tree
-hierarchical organization of decision rules
-## random forest
-returns label provided by a majority vote of decision trees
-
-
-## Classification performance measures
-
-
-
-
-<b> Meditation before concluding... </b>
-
-Choose your data for the last session. If you have no idea on a candidate, we could pick one based on specific points you want to work on.
-
-
-# Session 3: Your turn !
-
-Here, the idea is to apply the different classification techniques to a new data set, and compare them using the evaluation framework we described in Session 1 (parameter optimization, cross-validation, etc.)
-
-Hints:
-* Whatever the approach you use, your prediction step will often use the `predict` function.
 
 #Ressources
 
@@ -543,3 +482,5 @@ Hints:
 [An Introduction to Statistical Learning with Applications in R](http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Sixth%20Printing.pdf)
 
 [Introduction to ML with knn applied on iris data](http://www.datacamp.com/community/tutorials/machine-learning-in-r)
+
+

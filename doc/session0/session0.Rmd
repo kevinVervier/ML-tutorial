@@ -1,0 +1,36 @@
+---
+title: "Machine Learning Class: session 0"
+author: "Kevin Vervier"
+date: "August 1, 2016"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+This document aims at checking if everything is properly installed on your computer for the rest of the class.
+
+```{r ,message=FALSE, echo=FALSE}
+#package installation block
+if("devtools" %in% rownames(installed.packages()) == FALSE) {install.packages("devtools",repos="http://cran.us.r-project.org")}
+library(devtools)
+#nice pca
+if("ggbiplot" %in% rownames(installed.packages()) == FALSE) {install_github("ggbiplot", "vqv")}
+library(ggbiplot)
+# Embedded feature selection (ridge, Lasso, Elastic-Net)
+if("glmnet" %in% rownames(installed.packages()) == FALSE) {install.packages("glmnet",repos="http://cran.us.r-project.org")}
+library(glmnet)
+# Support Vector Machine
+if("LiblineaR" %in% rownames(installed.packages()) == FALSE) {install.packages("LiblineaR",repos="http://cran.us.r-project.org")}
+library(LiblineaR)
+# Random Forest
+if("randomForest" %in% rownames(installed.packages()) == FALSE) {install.packages("randomForest",repos="http://cran.us.r-project.org")}
+library(randomForest)
+
+```
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
+data <- read.csv('../../data/iris.csv')
+head(data,10)
+```
+
+If there is no error message, it seems that everything is set up for Session 1.
