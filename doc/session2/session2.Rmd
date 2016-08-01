@@ -25,6 +25,8 @@ library(class)
 library(rpart)
 # Random Forest
 library(randomForest)
+# performance measures
+library(ROCR)
 ```
 # Session 1 debriefing + homework 
 
@@ -186,9 +188,9 @@ text(x+1, y, labels=labs)
     
 ```{r}
 # standard command
-m <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
+m.svm <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
 # show model weights
-m$W
+m.svm$W
 ```
 
 ## Nearest neighbours (Section 2.2.3)
@@ -218,16 +220,73 @@ knn(train = sub.train[,-1], test = sub.test, cl = sub.train[,1], k = 1)
 * Advanced: may require a pruning phase to avoid overfitting, which is a big issue with this approach...
 
 ```{r}
+# rpart package
 # use the same kind of formula than linear regression
 rpart(species~., data=data, method='class')
 ```
 
 ## random forest
-returns label provided by a majority vote of decision trees
+* train multiple decision trees by considering random subsampling
+* correct single decision tree overfitting issue
+* returns label provided by a majority vote of decision trees
+
+![<b>Source</b>: http://www.slideshare.net/0xdata/jan-vitek-distributedrandomforest522013](pic/randomForest.jpg)
+
+* Advanced: here, there is two tunable parameters:
+    * `ntree` is the number of trees in the forest
+    * `mtry` is the number of variables randomly sampled for each tree
+* Advanced: you can measure feature importance in order to filter features
+
+```{r}
+# using randomForest package
+set.seed(42)
+# importance = TRUE is optional
+m.rf <- randomForest(species~., data=data, importance=TRUE)
+print(m.rf) # nicely overfitted !
+# feature importance
+importance(m.rf)
+```
 
 
 ## Classification performance measures
 
+* With all those new cool approaches, you may wonder which one is the best.
+* Problem: 'No free lunch' theorem (Wolpert, 1996)
+* For each new data set, you will need to evaluate and compare different approaches (not all of them).
+* Here is some useful tools that measure model perfomances in a classification context:
+* **Accuracy**: proportion of well-classified test examples
+* **True positive rate**: number of class 1 detected as class 1 (class 1 is positive)
+* **False positive rate**: number of class 1 detected as class 2 (class 1 is positive)
+* **ROC curve**: TPR as a function of FPR, considering different prediction thresholds
+* **AUC**: aera under the ROC curve, summarized the curve in one value
+* ... (see `ROCR` package documentation)
+
+```{r}
+# get predictions for random forest and knn on a random data split (DEMO)
+set.seed(42)
+idx = sample(1:2,nrow(data),replace=TRUE,prob = c(0.2,0.8))
+sub.train = data[which(idx == 1),]
+# define a random test set
+sub.test = data[which(idx == 2),-1]
+# need to be converted in a
+test.labels = data[which(idx == 2),1]
+
+#get predictions for decision tree
+m.cart <- rpart(species~., data=sub.train, method='class')
+pred.cart <- predict(m.cart, newdata = sub.test, type= 'class')
+  
+# get predictions for random forest
+m.rf <- randomForest(y = sub.train[,1], x=sub.train[,-1])
+pred.rf <- predict(m.rf, newdata = sub.test, type= "response")
+
+# get accuracy for decision tree
+sum(pred.cart == test.labels) / length(test.labels)
+# get accuracy for random forest
+sum(pred.rf == test.labels) / length(test.labels)
+  
+#advanced: use ROCR performances (requires predicted class probability, instead of class label)
+
+```
 
 
 
