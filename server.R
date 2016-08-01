@@ -12,7 +12,7 @@ shinyServer(function(input, output) {
   
   #read data function
   read_dataset <- reactive({
-    read.csv(input$your_data$datapath,row.names = 1)
+    read.csv(input$your_data$datapath)
   })
   
   # selected data set
@@ -636,10 +636,10 @@ shinyServer(function(input, output) {
     labels = factor(data[,1])
     
     if(nlevels(labels) > 2){
-      MDSplot(m,labels)
+      MDSplot(res$m,labels)
       legend("topleft", legend=levels(labels), fill=brewer.pal(length(levels(labels)), "Set1"))
     }else{
-      MDSplot(m,labels,palette = rainbow(2))
+      MDSplot(res$m,labels,palette = rainbow(2))
       legend("topleft", legend=levels(labels), fill=rainbow(2))
     }
   })
