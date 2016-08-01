@@ -1,0 +1,26 @@
+---
+title: 'Machine Learning class: session 3'
+author: "Kevin Vervier"
+date: "August 1, 2016"
+output: html_document
+---
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+# Session 3: Your turn !
+
+Here, the idea is to apply the different classification techniques to a new data set, and compare them using the evaluation framework we described in Session 1 (parameter optimization, cross-validation, etc.)
+
+Hints:
+* Whatever the approach you use, your prediction step will often use the `predict` function.
+
+#Ressources
+
+[(1) Hastie and Tibshirani Online course](http://www.r-bloggers.com/in-depth-introduction-to-machine-learning-in-15-hours-of-expert-videos/)
+
+[An Introduction to Statistical Learning with Applications in R](http://www-bcf.usc.edu/~gareth/ISL/ISLR%20Sixth%20Printing.pdf)
+
+[Introduction to ML with knn applied on iris data](http://www.datacamp.com/community/tutorials/machine-learning-in-r)
