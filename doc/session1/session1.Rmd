@@ -44,7 +44,7 @@ Here, one question could be:
 <b> Given those measurements on a new flower, is it possible to predict its corresponding species ? </b>
 
 ```{r }
-data <- read.csv('../../data/iris.csv')
+data <- read.csv('data/iris.csv')
 head(data,10)
 ```
 ### Descriptive statistics
@@ -134,7 +134,7 @@ Now that the dataset has been cleaned, it would be easier for us to train our fi
 We may want to save the pre-processed data set in order to load it easily in the next sessions.
 
 ```{r}
-write.csv(data,file='../../data/iris_processed.csv',quote=FALSE,row.names = FALSE)
+write.csv(data,file='data/iris_processed.csv',quote=FALSE,row.names = FALSE)
 ```
 
 
