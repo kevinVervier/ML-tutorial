@@ -1,5 +1,5 @@
 ---
-title: "Machine Learning class: session 1"
+title: 'Machine Learning class: session 1'
 author: "Kevin Vervier"
 date: "August 1, 2016"
 output: html_document
@@ -30,10 +30,10 @@ library(LiblineaR)
 
 ## Learn to know your data
 
-First, one needs to load the data set to study. Usually, there is <b><span style="color:#6495ED">observations</span></b> in row and <b><span style="color:#6495ED">attributes</span></b> in column.
+First, one needs to load the data set of interest. Usually, data $X$ is made of <b><span style="color:#6495ED">observations</span></b> in row and <b><span style="color:#6495ED">attributes</span></b> in column.
 Given the format of your data file, you may choose different `read.` functions (e.g., `read.csv`,`read.table`,...).
 
-<b>Important</b>: for the whole tutorial, we assume that the first column of the data is the response variable.
+<b>Important</b>: for the whole tutorial, we assume that the first column of the data is the response variable ($Y$).
 
 For demonstration purpose, we will use a modified version of a very popular data set: Edgar Anderson's Iris Data (`iris`).
 
@@ -61,9 +61,6 @@ summary(data)
 ```{r }
 #'pairs' function does scatterplots for each pair of variables and use labels for color.
 pairs(data[2:ncol(data)], main = "Correlation between variables", pch = 21, bg = c("red", "green3", "blue")[unclass(data[,1])])
-
-# you could also use 'cor' function to compute the correlation matrix
-cor(data[,2:ncol(data)])
 ```
 
 * Here, it seems that the `stem_length` argument is not correlated with iris species. We could decide to exclude this feature from the study.
@@ -75,30 +72,24 @@ data$stem_length = NULL
 * It is generally a good idea to check for <b><span style="color:#6495ED">outliers</span></b> in the data (due to typo, technical noise,...) via Principal Component Analysis (<b><span style="color:#6495ED">PCA</span></b>). 
     * This technique is a simple way to represent high-dimensional data in only 2 dimensions.
     * PCA looks for the <b><span style="color:#6495ED"> best linear combination of variables</span></b> to define new variables, encompassing as much variance as possible.
-    * In general and to keep things comparable, it is a good idea to <b> scale </b> each variable to be centered in <b> 0</b> and with a variance of <b> 1 </b>.
-
     
 ```{r }
-#take species name apart
+#separate species name (labels)
 labels <- data[,1]
 # keep input variables only
 obs <- data[,-1]
-# scale data (not mandatory), but useful for PCA
-obs = scale(obs,center= TRUE, scale= TRUE)
-obs = data.frame(obs) # convert scaled object to data.frame for convenience
 
 # 'prcomp' is the Principal Component function in R.
 res.pca <- prcomp(obs) 
 # See PCA results in summary
 print(res.pca)
+```
+The `Rotation` object contains the Principal Components (PCs) and their coordinates with the original variables.
 
+```{r }
 # Plot the 2 first PCs
-g <- ggbiplot(res.pca , obs.scale = 1, var.scale = 1, 
-              groups = labels)
-g <- g + scale_color_discrete(name = '')
-g <- g + theme(legend.direction = 'horizontal', 
-               legend.position = 'top')
-print(g)
+ggbiplot(res.pca , obs.scale = 1, groups = labels)
+
 ```
 
 It seems that we have an outlier belonging to Setosa species. It is preferable to keep it apart from the analysis, while investigating the reason of this measure. 
@@ -114,20 +105,13 @@ This is how it looks <b> after outlier filtering </b>.
 labels <- data[,1]
 # keep input variables only
 obs <- data[,-1]
-# scale data (not mandatory)
-#obs = scale(obs,center= TRUE, scale= TRUE)
-obs = data.frame(obs) # convert scaled object to data.frame for convenience
 
 # 'prcomp' is the Principal Component function in R.
 res.pca <- prcomp(obs) 
 
 # Plot the 2 first PCs
-g <- ggbiplot(res.pca , obs.scale = 1, var.scale = 1, 
-              groups = labels)
-g <- g + scale_color_discrete(name = '')
-g <- g + theme(legend.direction = 'horizontal', 
-               legend.position = 'top')
-print(g)
+ggbiplot(res.pca , obs.scale = 1, groups = labels)
+
 ```
 
 Now that the dataset has been cleaned, it would be easier for us to train our first machine learning model.
@@ -136,19 +120,17 @@ We may want to save the pre-processed data set in order to load it easily in the
 ```{r}
 write.csv(data,file='data/iris_processed.csv',quote=FALSE,row.names = FALSE)
 ```
+---
 
+## Machine learning
 
-## Statistical learning - Machine learning
+* General definition: <b> you want to find the best model trained on past data that will accurately predict future data. </b>
 
 * Machine learning arose as a subfield of Artificial Intelligence and has a greater emphasis on large scale applications and prediction accuracy.
-* Statistical Learning arose as a subfield of Statistics and emphasizes models and their interpretability, and precision and uncertainty.
-* More and more accepted that those terms refer to the same thing.
 * Known Machine Learning <b><span style="color:#6495ED"> trade-offs</span></b>:
     * Prediction accuracy versus interpretability: linear models are easy to interpret, but usually are not the best performers
     * Good fit versus overfitting: overfitting the training data decreases the generalization of the model
     * Parsimony versus black-box: number of predictors in the model
-
-* General definition: <b> you want to find the best model/function trained on past data that will accurately predict future data. </b>
 
 ## Supervised learning
 
@@ -157,50 +139,57 @@ It refers to the case where your training data are labelled, or have an outcome 
 NB: unsupervised learning is another field where there is not label on the data $\Rightarrow$ clustering.
 
 
-Application of supervised learning: 
+Applications of supervised learning: 
 
 * Decide which movie you might want to watch next on Netflix,
 * Identify the numbers in a handwritten zip code,
-* Estimate gene expression level based on multiple SNPs alleles ([geno2expr](https://github.com/kevinVervier/geno2expr-ML) approach),
+* Estimate gene expression level based on multiple SNPs alleles count ([geno2expr](https://github.com/kevinVervier/geno2expr-ML) approach),
 * Classify an individual into one of several diagnosis classes, based on multiple phenotypic measurements.
 
-Idea: 
+Learning framework: 
 
-* Output/response/target measurement $Y$
-    * In a <b><span style="color:#6495ED">regression</span></b> problem, $Y$ is a quantitative variable (e.g., price, gene expression).
-    * In a <b><span style="color:#6495ED">classification</span></b> problem, $Y$ takes values in a finite set (spam/ham, digit 0-9, cancer class).
 * Input/predictor/feature/covariate measurement vector $X$
+* Output/response/target measurement $Y$
+    * In a <b><span style="color:#6495ED">regression</span></b> problem, $Y$ is a quantitative variable.
+    * In a <b><span style="color:#6495ED">classification</span></b> problem, $Y$ takes values in a finite set.
+    
+(*Quizz*: based on thoses definitions, could you `classify` the previous examples ?) 
+    
+
 
 Based on <b><span style="color:#6495ED">training data</span></b> which are pairs $(xi,yi)$, we are interested in:
 
-1. accurately predicting unseen test cases, 
-2. understanding which inputs affect the output,
-3. assessing the quality of our predictions.
+1. accurately predicting unseen cases, 
+2. assessing the quality of our predictions,
+3. understanding which inputs affect the output.
 
+---
 
 
 ## Linear Regression
 
-* Simple approach for supervised learning that assumes a linear dependence between $Y$ and $X$, meaning that there exists constant weights $w_i$ for each predictor, such as $Y = w_0 + w_1\times X_1 + ... + \epsilon$, where $\epsilon$ is a random noise that is not captured by the predictors.
+* Simple approach for supervised learning that assumes a linear dependence between $Y$ and $X$, meaning that there exists constant weights $w_i$ for each predictor, such as $$Y = w_0 + w_1\times X_1 + ... + \epsilon,$$
+
+where $w_0$ represents the bias in the data, and $\epsilon$ is a random noise that is not captured by the predictors.
+
 * This approach works well when $Y$ is a numeric variable, but we will see an alternative approach for qualitative output.
 * Although it may seem overly simplistic, linear regression is extremely useful both conceptually and practically.
 * Parameters estimation by Residual Sum of Squares (RSS): minimizing residuals between ground truth and fitted values.
 
 ![Source: http://gerardnico.com/wiki/data_mining/residual](pic/statistics_residual.jpg)
 
+ Here, we will change a bit our data set, because the original Iris problem is not a regression one, but a classification problem (see later).
+ 
+ Let say that we are interested in predicting the Sepal length (column 1) of a flower, given the Sepal Width.
 
 ```{r }
-# Here, we will change a bit our data set, because the original Iris problem is not a regression one, but a classification problem (see later).
-# Let say that we are interested in predicting the Sepal length (column 1) of a flower, given the Sepal Width.
 
 fit <- lm(sepal_length ~ sepal_width, data = obs) # 'lm' stands for Linear Model.
 summary(fit)
 
 ```
 
-(*Quizz*) Any guess on why the Intercept/bias value is so low ?
-
-* To test if there is a relationship between one predictor and the outcome, we could compute a t-statistic and apply a threshold on the p-value.
+* To test if there is a significant relationship between one predictor and the outcome, we could compute a statistical test and apply a threshold on the p-value.
     * Fortunately, it is already done in `lm` $\Rightarrow$ look for the stars in the <b> pvalue </b> column (right).
 * Accuracy of the fit is measured using $R^2$, also provided by `lm`. It can help for model comparison.
 ```{r }
@@ -210,14 +199,14 @@ summary(fit)
 
 ```
 
-* NB: In its simplest version, linear regression does not test correlation between predictors, which could induce confusion when interpreting coefficients (here, Petal length and width).
+* *Advanced*: In its simplest version, linear regression does not test correlation between predictors, which could induce confusion when interpreting coefficients (here, Petal length and width).
     * In case of correlation between predictors, it is usually a good idea to consider _interactions_ between features as additional features.
     * There is also non-linear regression methods (e.g. splines or polynomial).
 
 <b> Congrats ! You just trained your first models ! </b>
 but...
 
-<b> Meditation before break... </b>
+<b> Meditation break... </b>
 
 * What about the trade-offs we discussed earlier, especially the generalization ? 
 * How to evaluate your model performances on future data ?
@@ -226,21 +215,22 @@ but...
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (Fig 2.10). <b>Left</b>:
 Data simulated from a function $f$ (almost linear), shown in black. Three estimates of $f$ are shown: the linear regression line (orange curve), and two smoothing spline fits (blue and green curves). <b>Right</b>: Training MSE (grey curve), test MSE (red curve), and minimum possible test MSE over all methods (dashed line). Squares represent the training and test MSEs for the three fits shown in the left-hand panel.](pic/overfit.png)
 
+---
 
 ## Model Selection and Regularization
 
 In this section, we will study how to get generalizable models, optimize method parameters and how to evaluate/compare different models.
 
-### Train/Validation/Test and Cross-validation
+### Train/Validation/Test sets
 
-* As we saw in the previous picture, it is important to <b> not use the training error </b> as a performance measure (overfitting)
+* As we saw in the previous picture, it is important to <b> not use the training error </b> as a performance measure (<b><span style="color:#6495ED">overfitting</span></b>)
 * The test error is the average error obtained on a new observations set, not used in the training step.
 * Hold-out a subset of the training observations from the fitting process and estimate test error on it.
 * Here is how to use Train/Validation/Test rule of thumb:
     * Consider 60% of your data for fitting model
     * 20% of the remaining data are used as validation set, especially if there is parameter optimization needed
     * the last 20% of the data are the test/hold-out data, only used when the final model is fitted and estimates test error
-    * Main drawback: usually highly depends of the considered random split (need several repeats)
+    * Main drawback: **need several repeats**, because performances usually depend of the considered random split.
    
 ![Source: http://images.slideplayer.com/17/5305651/slides/slide_14.jpg](pic/train_val_test.jpg) 
     
@@ -270,15 +260,15 @@ trainValTestLM <-function(seed = 42){
   preds1 = predict(fit1,X.val)
   preds2 = predict(fit2,X.val)
   
-  # One performance measure is the correlation between actual and predicted values:
+  # One performance measure is the Mean Square Error (MSE) between actual and predicted values:
   # Model 1
-  cor1 = cor(X.val[,1],preds1)
+  mse1 = mean((X.val[,1] - preds1)^2)
   # Model 2
-  cor2 = cor(X.val[,1],preds2)
+  mse2 = mean((X.val[,1] - preds2)^2)
 
   
   #select best model
-  if( cor1 > cor2 ){
+  if( mse1 < mse2 ){
     best.model = fit1
     best = 1
   }else{
@@ -288,13 +278,17 @@ trainValTestLM <-function(seed = 42){
   
   # Do test prediction
   preds.test = predict(best.model,X.test)
-  return(list('best.model' = best, 'model1' = fit1, 'model2' = fit2, 'val.perfs.1' = cor1, 'val.perfs.2' = cor2,'test.perfs' = cor(X.test[,1],preds.test)))
+  # Get MSE for the test set
+  mse.test = mean((X.test[,1] - preds.test)^2)
+  #return informations 
+  return(list('best.model' = best, 'model1' = fit1, 'model2' = fit2, 'val.perfs.1' = mse1, 'val.perfs.2' = mse2,'test.perfs' = mse.test))
   
 }
 
-#Call function
+#Call function for one random seed
 results = trainValTestLM(seed = 42)
 ```
+
 ```{r, echo = FALSE}
 cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
 cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
@@ -302,7 +296,22 @@ cat('Model', results$best.model,'performance on Test set:',results$test.perfs,'\
 
 ```
 
+```{r}
+#Call function for a different seed
+results = trainValTestLM(seed = 89)
+```
+
+```{r, echo = FALSE}
+cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
+cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
+cat('Model', results$best.model,'performance on Test set:',results$test.perfs,'\n')
+
+```
+
+
 Again, you may need to <b> repeat this process </b> (by changing the random seed) to assess model variability as a function of the random split (~50-100X), before applying on test.
+
+### Cross-validation
 
 * An alternative: $K$-fold cross-validation (e.g. $K$ = 5 or 10 or LOO)
     * randomly divide the data into $K$ equal-sized parts.
@@ -319,7 +328,7 @@ set.seed(42) # fix random seed for reproducible results
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
-idx = sample(1:nfolds,nrow(obs),replace=TRUE) # replace = FALSE if LOO
+idx = sample(1:nfolds,nrow(obs),replace=TRUE)
 # Sanity check
 table(idx)
 
@@ -344,23 +353,17 @@ for(fold in 1:nfolds){
   preds2[test.idx] = predict(fit2,X.test)
 }
 
-# One performance measure is the correlation between actual and predicted values:
-# Model 1
-cor(obs[,1],preds1)
-# Model 2
-cor(obs[,1],preds2)
-
 # In terms of Mean Square Error (MSE) ~ average of residuals
 # Model 1
 mean((obs[,1] - preds1)^2)
 # Model 2
 mean((obs[,1] - preds2)^2)
 
-
 ```
 
+---
 
-### Model selection and Regularization
+### Feature selection and Regularization
 
 When dealing with multivariate data, it can be cumbersome to try every possible combination of features in your model.
 
@@ -377,15 +380,15 @@ Good news! There is more systematic ways to select the most meaningful features 
     and $\lambda$ is a constant that controls the trade-off between the fit and the constraints.
     * Ridge regression ($L2$): keep all coefficients in the same range, but no selection ($\Omega(w) = \sum_i w_i^2$)
     * Lasso ($L1$): force some of the coefficients to be equal to 0 $\Rightarrow$ sparse model ($\Omega(w) = \sum |w_i|$)
-    * Elastic-Net ($L1 + L2$): combination of ridge and Lasso, leading to sparse model and better handling correlated predictors ($\Omega(w) = (1-\alpha)\times\mbox{Ridge} + \alpha\times\mbox{Lasso}$).
-    * Advanced: regularization is a research field, where one creates new set of constraints, based on known structure in the data (e.g., Group Lasso)
+    * Elastic-Net ($L1 + L2$): combination of ridge and Lasso, leading to sparse model and better handling correlated predictors $\Rightarrow$ $\Omega(w) = (1-\alpha)\times\mbox{Ridge} + \alpha\times\mbox{Lasso}$.
+    * *Advanced*: regularization is a research field, where one creates new set of constraints, based on known structure in the data (e.g., Group Lasso)
 
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso.png)
 
-(*Quizz*: shape of the elastic-net "ball"?)
+(*Quizz*: shape of the elastic-net "ball" for $\alpha=0.5$?)
 
 
-Here is an example of cross-validation evaluation that deals with parameter optimization (here, $\alpha$ and $\lambda$), using `glmnet` package.
+Here is an example of cross-validation evaluation that deals with feature selection <b> and </b> parameter optimization (here, $\alpha$ and $\lambda$), using `glmnet` package.
 
 ```{r }
 # Code for a cross-validation evaluation
@@ -393,7 +396,7 @@ set.seed(42) # fix random seed for reproducible results
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
-idx = sample(1:nfolds,nrow(obs),replace=TRUE) # replace = FALSE if LOO
+idx = sample(1:nfolds,nrow(obs),replace=TRUE) 
 
 #define alpha parameter
 alphas <- seq(from = 0, to = 1, by = 0.01)
@@ -403,13 +406,9 @@ mses <- rep(0,length(alphas))
 
 #loop over alpha values
 for(i in 1:length(alphas)){
-  if(nfolds != nrow(obs)){
-    # cv.glmnet function does the CV loop for the different folds
-    cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) # for a given alpha, lambda is optimized inside cv.glmnet
-  }else{
-    #LOOCV
-    cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=alphas[i], nfolds=nfolds,grouped=FALSE)
-  }
+  # cv.glmnet function does the CV loop for the different folds
+  cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) 
+  # for a given alpha, lambda is optimized inside cv.glmnet
   preds.regul = predict(cvfits, newx = as.matrix(obs[,-1]), s = "lambda.min")
   mses[i] <- mean((obs[,1] - preds.regul)^2)
 }
@@ -429,12 +428,7 @@ plot1
 #get best model among alpha-range
 best.alpha = alphas[tail(which(mses == min(mses)),1)]
 #retrain model with best_alpha
-if(nfolds != nrow(obs)){
-  cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
-}else{
-  #LOOCV
-  cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,grouped=FALSE)
-}
+cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
 
 # print best parameters pair
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
@@ -444,22 +438,20 @@ Given the small $\lambda$, there is little hope to observe the shrinkage effect,
 ```{r }
 #get preds for the best (alpha,lambda) pair
 preds.regul = predict(cvfits, newx = as.matrix(obs[,-1]), s = "lambda.min")
-#Check the best model content
-coef(cvfits, s = "lambda.min")
-```
-This model is slightly different from the Linear Model one, but different enough.
-
-```{r }
-# Simple Linear Model trained with all the features
-cor(obs[,1],preds2)
-cor(obs[,1],preds.regul)
-
 # In terms of Mean Square Error (MSE)
-# Linear Regression
+# Linear Regression with all variables
 mean((obs[,1] - preds2)^2)
 # Regularized Model
 mean((obs[,1] - preds.regul)^2)
+
+# Check the best Elastic-Net model
+coef(cvfits, s = "lambda.min")
+
+# Standard Linear Regression model
+coef(fit)
+
 ```
+This model is slightly different from the Linear Model one, but different enough in terms of performance.
 
 Sometimes regularization is not largely outperforming standard Linear Regression, but it is worth to try it, because, **theoretically it will never do worse**. (*Quizz*: why ?)
 
@@ -472,7 +464,7 @@ When fitting the model for estimating sepal length, we did not use the iris spec
 * Plot the sepal length as a function of iris species (*Hint*: boxplot),
 * Add dummy (binary) variables to iris dataset that represent species (*Hint*: 2 of them are enough),
 * Fit linear model on this new data set (*Hint*: using cross-validation and regularization).
-
+* Demonstrate if the species is an important cofactor to include or not
 
 
 #Ressources
