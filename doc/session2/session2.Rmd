@@ -14,6 +14,8 @@ When you click the **Knit** button a document will be generated that includes bo
 #package installation block
 library(devtools)
 #nice pca
+library(ggplot2)
+#nice pca
 library(ggbiplot)
 # Embedded feature selection (ridge, Lasso, Elastic-Net)
 library(glmnet)
@@ -32,7 +34,7 @@ library(ROCR)
 
 First, we need to load the data we processed during the last session:
 ```{r }
-data <- read.csv('data/iris_processed.csv')
+data <- read.csv('../session1/data/iris_processed.csv')
 ```
 
 * Plot the sepal length as a function of iris species (*Hint*: boxplot),
