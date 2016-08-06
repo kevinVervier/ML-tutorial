@@ -266,13 +266,22 @@ plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
            regression as a function of alpha parameter") + 
        #add kitchen sink
           geom_hline(aes(yintercept=mean((obs[,1] - preds2)^2)),
-                       size=0.2,linetype = 2)
+                       size=0.2,linetype = 2,colour='dodgerblue4') +
+    geom_text(aes(x = 0.7, y = mean((obs[,1] - preds2)^2)+0.01*mean(range(this$mse)) , label = "Linear model (lambda = 0)"), colour = "dodgerblue4") + theme(legend.position="none")
 plot1
 
 #get best model among alpha-range
 best.alpha = alphas[which.min(mses)]
 #retrain model with best_alpha
 cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
+# fit a model without cross-validation, just to see coefficient values evolution
+fit.regul <- glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha)
+# Effect of lambda value on the model
+par(mar=c(4.5,4.5,1,4))
+plot(fit.regul,xvar = "lambda")
+vnat=coef(fit.regul)
+vnat=vnat[-1,ncol(vnat)] # remove the intercept, and get the coefficients at the end of the path
+axis(2, at=vnat,line=-.5,label=names(vnat),las=1,tick=FALSE, cex.axis=0.5) 
 
 # print best parameters pair
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
@@ -289,11 +298,12 @@ mean((obs[,1] - preds2)^2)
 mean((obs[,1] - preds.regul)^2)
 
 # Check the best Elastic-Net model
-coef(cvfits, s = "lambda.min")
+coef.regul = coef(cvfits, s = "lambda.min")
 
 # Standard Linear Regression model
-coef(fit2)
+coef.lm = coef(fit2)
 
+cbind(coef.regul,coef.lm)
 ```
 This model is slightly different from the Linear Model one, but different enough in terms of performance.
 
