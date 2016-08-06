@@ -88,9 +88,9 @@ trainValTestLM <-function(seed = 42){
   
   #### train ####
   # Model 1
-  mse.train1 = mean((X.train[,1] - preds1)^2)
+  mse.train1 = mean((X.train[,1] - preds.train1)^2)
   # Model 2
-  mse.train2 = mean((X.train[,1] - preds2)^2)
+  mse.train2 = mean((X.train[,1] - preds.train2)^2)
   
   #### validation ####
   # Model 1
