@@ -274,14 +274,18 @@ plot1
 best.alpha = alphas[which.min(mses)]
 #retrain model with best_alpha
 cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
-# fit a model without cross-validation, just to see coefficient values evolution
-fit.regul <- glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha)
-# Effect of lambda value on the model
+
+# get all the coefficients as a function of lambda
+coefs = coef(cvfits, s=cvfits$lambda)[-1,]
+
 par(mar=c(4.5,4.5,1,4))
-plot(fit.regul,xvar = "lambda")
-vnat=coef(fit.regul)
-vnat=vnat[-1,ncol(vnat)] # remove the intercept, and get the coefficients at the end of the path
-axis(2, at=vnat,line=-.5,label=names(vnat),las=1,tick=FALSE, cex.axis=0.5) 
+plot(log10(cvfits$lambda),coefs[1,],type='l',ylim = range(coefs),xlab = 'log(Lambda)',ylab='coefficients')
+lines(log10(cvfits$lambda),coefs[2,],col='red')
+lines(log10(cvfits$lambda),coefs[3,],col='green')
+# add variable names
+axis(2, at=coefs[,ncol(coefs)],line=-.5,label=rownames(coefs),las=1,tick=FALSE, cex.axis=0.5) 
+# add lambda min
+abline(v=log10(cvfits$lambda.min),lty = 2)
 
 # print best parameters pair
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
