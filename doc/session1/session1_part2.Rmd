@@ -58,8 +58,7 @@ In this section, we will study how to get generalizable models, optimize method 
 
 # Code for a train/validation/test split and evaluation of two models
 
-trainValTestLM <-function(seed = 42){
-  set.seed(seed) # fix random seed for reproducible results
+trainValTestLM <-function(){
   # Generate random index
   idx = sample(c('train','validation','test'),nrow(obs),replace=TRUE,prob = c(0.6,0.2,0.2))
   # Sanity check
@@ -117,8 +116,8 @@ trainValTestLM <-function(seed = 42){
   
 }
 
-#Call function for one random seed
-results = trainValTestLM(seed = 42)
+#Call function for one random split
+results = trainValTestLM()
 ```
 
 ```{r, echo = FALSE}
@@ -134,8 +133,8 @@ cat('Best model (', results$best.model,') performance on Test set:',results$test
 ```
 
 ```{r}
-#Call function for a different seed
-results = trainValTestLM(seed = 89)
+#Call function for a different random split --> note the variation in performance measurement
+results = trainValTestLM()
 ```
 
 ```{r, echo = FALSE}
@@ -151,14 +150,15 @@ cat('Best model (', results$best.model,') performance on Test set:',results$test
 ```
 
 
-Again, you may need to <b> repeat this process </b> (by changing the random seed) to assess model variability as a function of the random split (~50-100X), before applying on test.
+Again, you may need to <b> repeat this process </b> to assess model variability as a function of the random split (~50-100X).
+As a matter of reproducibility, you may want to fix the random seed of your experiments (http://stackoverflow.com/questions/13605271/reasons-for-using-the-set-seed-function).
 
 ### Cross-validation
 
 * An alternative: $K$-fold cross-validation (e.g. $K$ = 5 or 10 or LOO)
     * randomly divide the data into $K$ equal-sized parts.
-    * loop for $k$ in 1 to $K$: leave out part $k$ and fit the model to the other $K-1$ combined parts
-    * obtain predictions on the $k$-th part
+    * loop for $k$ in 1 to $K$: leave out the fold $k$ and fit the model to the other $K-1$ combined parts
+    * obtain predictions on the $k$-th fold
     * get cross-validation error estimation by combining all predictions
     * LOO stands for 'Leave-One-Out', where $K$ = `nrow(data)`.
     
@@ -166,7 +166,7 @@ Again, you may need to <b> repeat this process </b> (by changing the random seed
 
 ```{r }
 # Code for a cross-validation evaluation
-set.seed(42) # fix random seed for reproducible results
+
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
@@ -181,18 +181,18 @@ preds2 = rep(0,nrow(obs))
 # Loop/Rotation over the different folds
 for(fold in 1:nfolds){
   #get index of test fold
-  test.idx = which(idx == fold)
+  val.idx = which(idx == fold)
   # split train/test
-  X.test = obs[test.idx,]
-  X.train = obs[-test.idx,]
+  X.val = obs[val.idx,]
+  X.train = obs[-val.idx,]
   # Fit model with only sepal width predictor
   fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
   # Fit model with all predictors
   fit2 <- lm(sepal_length ~ ., data = X.train)
 
   # Evaluate both models on validation
-  preds1[test.idx] = predict(fit1,X.test)
-  preds2[test.idx] = predict(fit2,X.test)
+  preds1[val.idx] = predict(fit1,X.val)
+  preds2[val.idx] = predict(fit2,X.val)
 }
 
 # In terms of Mean Square Error (MSE) ~ average of residuals
@@ -207,24 +207,23 @@ By using one of these approaches, you avoid overfitting and get a fair way to co
 
 ---
 
-### Feature selection and Regularization
+### Feature selection
 
 We already checked with `iris` linear regression example that it can be cumbersome to try every possible combination of features in your model.
 
 Good news! There is more systematic ways to select the most meaningful features in your model:
 
-* <b> Filter-based </b> selection: iteratively select the best feature subset, implying that some features are not relevant (basically, follow the stars!)
-    * Backward selection starts with all the variables and remove one feature at a time,
-    * Forward selection starts with empty model (intercept) and add one feature at a time.
+* <b> Backward selection </b> (naive): iteratively select the best feature subset, implying that some features are not relevant (basically, follow the p-values stars!)
+  --> it requires you train several models with different subsets of variables (could take long with a large set of input variables).
 
-* <b> Embedded/Shrinkage </b> approaches: feature selection during the training step, by regularizing/constraining coefficient estimates towards zero.
+* <b> Regularization </b> approaches (Section 6.2): feature selection during the training step, by regularizing/constraining coefficient estimates towards zero.
     * Idea: minimize a linear regression with additional constraints on the model
-    $$ \min_w \mbox{RSS}(Xw,Y) + \lambda\Omega(w),$$
-    where $\Omega(w)$ is a function that has higher value for $w$ not respecting the constraints,
+    $$ \min_\beta \mbox{Error}(X,Y,\beta) + \lambda\Omega(\beta),$$
+    where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
     and $\lambda$ is a constant that controls the trade-off between the fit and the constraints.
-    * Ridge regression ($L2$): keep all coefficients in the same range, but no selection ($\Omega(w) = \sum_i w_i^2$)
-    * Lasso ($L1$): force some of the coefficients to be equal to 0 $\Rightarrow$ sparse model ($\Omega(w) = \sum |w_i|$)
-    * Elastic-Net ($L1 + L2$): combination of ridge and Lasso, leading to sparse model and better handling correlated predictors $\Rightarrow$ $\Omega(w) = (1-\alpha)\times\mbox{Ridge} + \alpha\times\mbox{Lasso}$.
+    * <b>Ridge</b> regression: keep all coefficients in the same range, but no selection
+    * <b>Lasso</b>: force some of the coefficients to be equal to 0 $\Rightarrow$ sparse model
+    * <b>Elastic-Net</b>: combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\alpha)\times\mbox{Ridge}(\beta) + \alpha\times\mbox{Lasso}(\beta).$$
     * *Advanced*: regularization is a research field, where one creates new set of constraints, based on known structure in the data (e.g., Group Lasso)
 
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso.png)
@@ -236,7 +235,7 @@ Here is an example of cross-validation evaluation that deals with feature select
 
 ```{r }
 # Code for a cross-validation evaluation
-set.seed(42) # fix random seed for reproducible results
+
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
@@ -258,39 +257,55 @@ for(i in 1:length(alphas)){
 }
 this <- data.frame(mse=mses, alpha=alphas)
 
+#get best model among alpha-range
+best.alpha = alphas[which.min(mses)]
+
+
+# figure: alpha parameter impact on perfomances
 plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
   geom_line() +
   ylab("CV mean squared error") +
   xlab("alpha parameter") +
   ggtitle("model error of highest performing regularized elastic-net
            regression as a function of alpha parameter") + 
-       #add kitchen sink
+       #add performances for linear regression without regularization
           geom_hline(aes(yintercept=mean((obs[,1] - preds2)^2)),
                        size=0.2,linetype = 2,colour='dodgerblue4') +
+       # add best alpha point
+          geom_point(aes(x=best.alpha,y=min(this$mse)),color = 'red') +
     geom_text(aes(x = 0.7, y = mean((obs[,1] - preds2)^2)+0.01*mean(range(this$mse)) , label = "Linear model (lambda = 0)"), colour = "dodgerblue4") + theme(legend.position="none")
 plot1
 
-#get best model among alpha-range
-best.alpha = alphas[which.min(mses)]
 #retrain model with best_alpha
 cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
 
-# get all the coefficients as a function of lambda
-coefs = coef(cvfits, s=cvfits$lambda)[-1,]
-
-par(mar=c(4.5,4.5,1,4))
-plot(log10(cvfits$lambda),coefs[1,],type='l',ylim = range(coefs),xlab = 'log(Lambda)',ylab='coefficients')
-lines(log10(cvfits$lambda),coefs[2,],col='red')
-lines(log10(cvfits$lambda),coefs[3,],col='green')
-# add variable names
-axis(2, at=coefs[,ncol(coefs)],line=-.5,label=rownames(coefs),las=1,tick=FALSE, cex.axis=0.5) 
-# add lambda min
-abline(v=log10(cvfits$lambda.min),lty = 2)
-
 # print best parameters pair
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
+
+# figure: lambda parameter impact on performances (given alpha = best_alpha)
+xlab = "log(Lambda)"
+plot.args = list(x = log10(cvfits$lambda), y = cvfits$cvm, 
+        ylim = range(cvfits$cvup, cvfits$cvlo), xlab = xlab, ylab = 'Mean Square Error in 10 CV-folds', type = "n",main = paste('Regularization impact for alpha =',best.alpha))
+
+do.call("plot", plot.args)
+# function drawing error bars given an upper and lower bounds
+error.bars <-function(x, upper, lower, width = 0.02, ...)
+{
+	xlim <- range(x)
+	barw <- diff(xlim) * width
+	segments(x, upper, x, lower, ...)
+	segments(x - barw, upper, x + barw, upper, ...)
+	segments(x - barw, lower, x + barw, lower, ...)
+}
+error.bars(log10(cvfits$lambda), cvfits$cvup, cvfits$cvlo, width = 0.01, col = "darkgrey")
+points(log10(cvfits$lambda), cvfits$cvm, pch = 20, col = "green")
+abline(v = log10(cvfits$lambda.min), lty = 2,col = 'red')
+
 ```
-Given the small $\lambda$, there is little hope to observe the shrinkage effect, here.
+
+Those two graphics illustrate why it is important to find the right parameters, before training your final model. And this will be true whatever the learning technique you will use later.
+
+Here, we compare in a more numerical way the gain of applying regularization, compared to standard linear regression.
 
 ```{r }
 #get preds for the best (alpha,lambda) pair
