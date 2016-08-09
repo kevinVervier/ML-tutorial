@@ -45,11 +45,11 @@ In this section, we will study how to get generalizable models, optimize method 
 * As we saw in the previous picture, it is important to <b> not use the training error </b> as a performance measure (<b><span style="color:#6495ED">overfitting</span></b>)
 * The test error is the average error obtained on a new observations set, not used in the training step.
 * Hold-out a subset of the training observations from the fitting process and estimate test error on it.
-* Here is how to use Train/Validation/Test rule of thumb:
+* Here is how to use Train/Validation/Test <b><span style="color:#6495ED">rule of thumb</span></b>:
     * Consider 60% of your data for fitting model
     * 20% of the remaining data are used as validation set, especially if there is parameter optimization needed
     * the last 20% of the data are the test/hold-out data, only used when the final model is fitted and estimates test error
-    * Main drawback: **need several repeats**, because performances usually depend of the considered random split.
+    * Main drawback: **use 20% of the data** to assess future model performance, so values highly depend of the random split.
    
 ![Source: http://images.slideplayer.com/17/5305651/slides/slide_14.jpg](pic/train_val_test.jpg) 
     
@@ -74,22 +74,11 @@ trainValTestLM <-function(){
   # Fit model with all predictors
   fit2 <- lm(sepal_length ~ ., data = X.train)
 
-  
-  # Evaluate both models on training (BAD)
-  preds.train1 = predict(fit1,X.train)
-  preds.train2 = predict(fit2,X.train)
-
   # Evaluate both models on validation
   preds1 = predict(fit1,X.val)
   preds2 = predict(fit2,X.val)
   
   # One performance measure is the Mean Square Error (MSE) between actual and predicted values:
-  
-  #### train ####
-  # Model 1
-  mse.train1 = mean((X.train[,1] - preds.train1)^2)
-  # Model 2
-  mse.train2 = mean((X.train[,1] - preds.train2)^2)
   
   #### validation ####
   # Model 1
@@ -98,7 +87,7 @@ trainValTestLM <-function(){
   mse2 = mean((X.val[,1] - preds2)^2)
 
   
-  #select best model
+  #select best model, based on the smallest error (here)
   if( mse1 < mse2 ){
     best.model = fit1
     best = 1
@@ -112,7 +101,7 @@ trainValTestLM <-function(){
   # Get MSE for the test set
   mse.test = mean((X.test[,1] - preds.test)^2)
   #return informations 
-  return(list('best.model' = best, 'model1' = fit1, 'model2' = fit2, 'train.perfs.1' = mse.train1, 'train.perfs.2' = mse.train2, 'val.perfs.1' = mse1, 'val.perfs.2' = mse2,'test.perfs' = mse.test))
+  return(list('best.model' = best, 'model1' = fit1, 'model2' = fit2, 'val.perfs.1' = mse1, 'val.perfs.2' = mse2,'test.perfs' = mse.test))
   
 }
 
@@ -121,10 +110,8 @@ results = trainValTestLM()
 ```
 
 ```{r, echo = FALSE}
-cat('Model 1 performance on Train set:',results$train.perfs.1,'\n')
-cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
 
-cat('Model 2 performance on Train set:',results$train.perfs.2,'\n')
+cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
 cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
 
 
@@ -138,10 +125,7 @@ results = trainValTestLM()
 ```
 
 ```{r, echo = FALSE}
-cat('Model 1 performance on Train set:',results$train.perfs.1,'\n')
 cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
-
-cat('Model 2 performance on Train set:',results$train.perfs.2,'\n')
 cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
 
 
@@ -150,22 +134,21 @@ cat('Best model (', results$best.model,') performance on Test set:',results$test
 ```
 
 
-Again, you may need to <b> repeat this process </b> to assess model variability as a function of the random split (~50-100X).
-As a matter of reproducibility, you may want to fix the random seed of your experiments (http://stackoverflow.com/questions/13605271/reasons-for-using-the-set-seed-function).
-
 ### Cross-validation
 
-* An alternative: $K$-fold cross-validation (e.g. $K$ = 5 or 10 or LOO)
+* An alternative: $K$-fold cross-validation (e.g. $K$ = 5 or 10)
     * randomly divide the data into $K$ equal-sized parts.
     * loop for $k$ in 1 to $K$: leave out the fold $k$ and fit the model to the other $K-1$ combined parts
     * obtain predictions on the $k$-th fold
-    * get cross-validation error estimation by combining all predictions
-    * LOO stands for 'Leave-One-Out', where $K$ = `nrow(data)`.
+    * get cross-validation error estimation by combining all predictions (<b>100% of the data</b>).
     
 ![Source: http://bugra.github.io/work/notes/2014-11-22/an-introduction-to-supervised-learning-scikit-learn/](pic/cv.png) 
 
 ```{r }
 # Code for a cross-validation evaluation
+
+# Advanced: Fix random seed for reproducibility purpose (having the same random folds)
+set.seed(42)
 
 # Number of folds/rounds
 nfolds = 10
@@ -211,30 +194,30 @@ By using one of these approaches, you avoid overfitting and get a fair way to co
 
 We already checked with `iris` linear regression example that it can be cumbersome to try every possible combination of features in your model.
 
-Good news! There is more systematic ways to select the most meaningful features in your model:
+Good news! There is more systematic ways to select the most meaningful features in your model (cf Section 6).
+Here, we will cover one of them called <b> Regularization </b> approach (Section 6.2)
+The feature selection occurs during the training step, by **regularizing/constraining coefficient estimates towards zero**.
 
-* <b> Backward selection </b> (naive): iteratively select the best feature subset, implying that some features are not relevant (basically, follow the p-values stars!)
-  --> it requires you train several models with different subsets of variables (could take long with a large set of input variables).
-
-* <b> Regularization </b> approaches (Section 6.2): feature selection during the training step, by regularizing/constraining coefficient estimates towards zero.
-    * Idea: minimize a linear regression with additional constraints on the model
-    $$ \min_\beta \mbox{Error}(X,Y,\beta) + \lambda\Omega(\beta),$$
+* Idea: minimize a linear regression with additional constraints on the model
+    $$ \min_\beta \mbox{Error}(X,Y,\beta) + \color{orange}{\lambda}\Omega(\beta),$$
     where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
-    and $\lambda$ is a constant that controls the trade-off between the fit and the constraints.
-    * <b>Ridge</b> regression: keep all coefficients in the same range, but no selection
-    * <b>Lasso</b>: force some of the coefficients to be equal to 0 $\Rightarrow$ sparse model
+    
+    and $\lambda$ is a constant that controls the trade-off between the fit and the constraints ($\lambda=0$ leads to standard linear regression).
+    * <b>Ridge</b> regression: keep all coefficients in the same range, but no selection: $\Omega(\beta) = \|\beta\|_2^2$,
+    * <b>Lasso</b>: force some of the coefficients to be equal to 0: $\Omega(\beta) = |\beta|^2$,
     * <b>Elastic-Net</b>: combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\alpha)\times\mbox{Ridge}(\beta) + \alpha\times\mbox{Lasso}(\beta).$$
-    * *Advanced*: regularization is a research field, where one creates new set of constraints, based on known structure in the data (e.g., Group Lasso)
 
-![<b>Source</b>: An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso.png)
+In this picture, the blue area represents the model constraints ($\Omega(\beta)<1/\lambda$).
 
-(*Quizz*: shape of the elastic-net "ball" for $\alpha=0.5$?)
-
+![Inspired from An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso_hm.png)
 
 Here is an example of cross-validation evaluation that deals with feature selection <b> and </b> parameter optimization (here, $\alpha$ and $\lambda$), using `glmnet` package.
 
 ```{r }
 # Code for a cross-validation evaluation
+
+# Advanced: Fix random seed for reproducibility purpose (having the same random folds)
+set.seed(42)
 
 # Number of folds/rounds
 nfolds = 10
@@ -283,7 +266,7 @@ cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=n
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
 
 # figure: lambda parameter impact on performances (given alpha = best_alpha)
-xlab = "log(Lambda)"
+xlab = "log10(Lambda)"
 plot.args = list(x = log10(cvfits$lambda), y = cvfits$cvm, 
         ylim = range(cvfits$cvup, cvfits$cvlo), xlab = xlab, ylab = 'Mean Square Error in 10 CV-folds', type = "n",main = paste('Regularization impact for alpha =',best.alpha))
 
@@ -322,7 +305,10 @@ coef.regul = coef(cvfits, s = "lambda.min")
 # Standard Linear Regression model
 coef.lm = coef(fit2)
 
-cbind(coef.regul,coef.lm)
+models = cbind(coef.regul,coef.lm)
+colnames(models)  = c('Regularized Model', 'Standard Linear Model')
+print(models)
+
 ```
 This model is slightly different from the Linear Model one, but different enough in terms of performance.
 
