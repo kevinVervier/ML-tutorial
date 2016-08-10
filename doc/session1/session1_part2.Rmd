@@ -57,80 +57,111 @@ In this section, we will study how to get generalizable models, optimize method 
 ```{r }
 
 # Code for a train/validation/test split and evaluation of two models
+# fix the randomness of the following lines, enable results reproducibility
+set.seed(42)
+# Generate random index
+idx.test = sample(c('non-test','test'),nrow(obs),replace=TRUE,prob = c(0.8,0.2))
 
-trainValTestLM <-function(){
-  # Generate random index
-  idx = sample(c('train','validation','test'),nrow(obs),replace=TRUE,prob = c(0.6,0.2,0.2))
-  # Sanity check
-  #table(idx)
+# split observations in test/non-test sets
+X = obs[which(idx.test == 'non-test'),]
+X.test = obs[which(idx.test == 'test'),] # this test set will be used for all the evalutations in this session
 
-  # split X
-  X.train = obs[which(idx == 'train'),]
-  X.val = obs[which(idx == 'validation'),]
-  X.test = obs[which(idx == 'test'),]
+# define train/validation split
+idx.val = sample(c('train','val'),nrow(X),replace=TRUE,prob = c(0.8,0.2))
+X.train = X[which(idx.val == 'train'),]
+X.val = X[which(idx.val == 'val'),]
 
-  # Fit model with only sepal width predictor
-  fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
-  # Fit model with all predictors
-  fit2 <- lm(sepal_length ~ ., data = X.train)
 
-  # Evaluate both models on validation
-  preds1 = predict(fit1,X.val)
-  preds2 = predict(fit2,X.val)
-  
-  # One performance measure is the Mean Square Error (MSE) between actual and predicted values:
-  
-  #### validation ####
-  # Model 1
-  mse1 = mean((X.val[,1] - preds1)^2)
-  # Model 2
-  mse2 = mean((X.val[,1] - preds2)^2)
+# Fit model with only sepal width predictor
+fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
+# Fit model with all predictors
+fit2 <- lm(sepal_length ~ ., data = X.train)
 
-  
-  #select best model, based on the smallest error (here)
-  if( mse1 < mse2 ){
-    best.model = fit1
-    best = 1
-  }else{
-    best.model = fit2
-    best = 2
-  }
-  
-  # Do test prediction
-  preds.test = predict(best.model,X.test)
-  # Get MSE for the test set
-  mse.test = mean((X.test[,1] - preds.test)^2)
-  #return informations 
-  return(list('best.model' = best, 'model1' = fit1, 'model2' = fit2, 'val.perfs.1' = mse1, 'val.perfs.2' = mse2,'test.perfs' = mse.test))
-  
+# Evaluate both models on validation
+preds1 = predict(fit1,X.val)
+preds2 = predict(fit2,X.val)
+
+# One performance measure is the Mean Square Error (MSE) between actual and predicted values:
+
+#### validation ####
+# Model 1
+mse1 = mean((X.val[,1] - preds1)^2)
+# Model 2
+mse2 = mean((X.val[,1] - preds2)^2)
+
+
+#select best model, based on the smallest error (here)
+if( mse1 < mse2 ){
+  best.model = fit1
+  best = 1
+}else{
+  best.model = fit2
+  best = 2
 }
 
-#Call function for one random split
-results = trainValTestLM()
+# Do test prediction
+preds.test = predict(best.model,X.test)
+# Get MSE for the test set
+mse.test = mean((X.test[,1] - preds.test)^2)
+
 ```
 
 ```{r, echo = FALSE}
 
-cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
-cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
+cat('Model 1 error on Validation set:',mse1,'\n')
+cat('Model 2 error on Validation set:',mse2,'\n')
 
 
-cat('Best model (', results$best.model,') performance on Test set:',results$test.perfs,'\n')
+cat('Best model (', best,') error on Test set:',mse.test,'\n')
 
 ```
 
 ```{r}
 #Call function for a different random split --> note the variation in performance measurement
-results = trainValTestLM()
+# define train/validation split
+idx.val = sample(c('train','val'),nrow(X),replace=TRUE,prob = c(0.8,0.2))
+X.train = X[which(idx.val == 'train'),]
+X.val = X[which(idx.val == 'val'),]
+
+# Fit model with only sepal width predictor
+fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
+# Fit model with all predictors
+fit2 <- lm(sepal_length ~ ., data = X.train)
+
+# Evaluate both models on validation
+preds1 = predict(fit1,X.val)
+preds2 = predict(fit2,X.val)
+
+# One performance measure is the Mean Square Error (MSE) between actual and predicted values:
+
+#### validation ####
+# Model 1
+mse1 = mean((X.val[,1] - preds1)^2)
+# Model 2
+mse2 = mean((X.val[,1] - preds2)^2)
+
+#select best model, based on the smallest error (here)
+if( mse1 < mse2 ){
+  best.model = fit1
+  best = 1
+}else{
+  best.model = fit2
+  best = 2
+}
+# Do test prediction
+preds.test = predict(best.model,X.test)
+# Get MSE for the test set
+mse.test = mean((X.test[,1] - preds.test)^2)
+
 ```
 
 ```{r, echo = FALSE}
-cat('Model 1 performance on Validation set:',results$val.perfs.1,'\n')
-cat('Model 2 performance on Validation set:',results$val.perfs.2,'\n')
+
+cat('Model 1 error on Validation set:',mse1,'\n')
+cat('Model 2 error on Validation set:',mse2,'\n')
 
 
-cat('Best model (', results$best.model,') performance on Test set:',results$test.perfs,'\n')
-
+cat('Best model (', best,') error on Test set:',mse.test,'\n')
 ```
 
 
@@ -153,21 +184,21 @@ set.seed(42)
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
-idx = sample(1:nfolds,nrow(obs),replace=TRUE)
+idx = sample(1:nfolds,nrow(X),replace=TRUE)
 # Sanity check
 table(idx)
 
 # Initiate vectors for storing predictions from 2 models
-preds1 = rep(0,nrow(obs))
-preds2 = rep(0,nrow(obs))
+preds1 = rep(0,nrow(X))
+preds2 = rep(0,nrow(X))
 
 # Loop/Rotation over the different folds
 for(fold in 1:nfolds){
   #get index of test fold
   val.idx = which(idx == fold)
   # split train/test
-  X.val = obs[val.idx,]
-  X.train = obs[-val.idx,]
+  X.val = X[val.idx,]
+  X.train = X[-val.idx,]
   # Fit model with only sepal width predictor
   fit1 <- lm(sepal_length ~ sepal_width, data = X.train)
   # Fit model with all predictors
@@ -180,9 +211,22 @@ for(fold in 1:nfolds){
 
 # In terms of Mean Square Error (MSE) ~ average of residuals
 # Model 1
-mean((obs[,1] - preds1)^2)
+mse1 = mean((X[,1] - preds1)^2)
 # Model 2
-mean((obs[,1] - preds2)^2)
+mse2 = mean((X[,1] - preds2)^2)
+
+cat('Model1 has a CV-error=',mse1,'while Model2 has CV-error=',mse2,'\n')
+if(mse1 < mse2){
+  final.fit <- lm(sepal_length ~ sepal_width, data = X)
+  preds.test = predict(final.fit,X.test)
+}else{
+  final.fit <- lm(sepal_length ~ ., data = X)
+  preds.test = predict(final.fit,X.test)
+}
+
+# final test set performances
+mse.test = mean((X.test[,1] - preds.test)^2)
+print(mse.test)
 
 ```
 
@@ -203,9 +247,10 @@ The feature selection occurs during the training step, by **regularizing/constra
     where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
     
     and $\lambda$ is a constant that controls the trade-off between the fit and the constraints ($\lambda=0$ leads to standard linear regression).
-    * <b>Ridge</b> regression: keep all coefficients in the same range, but no selection: $\Omega(\beta) = \|\beta\|_2^2$,
-    * <b>Lasso</b>: force some of the coefficients to be equal to 0: $\Omega(\beta) = |\beta|^2$,
-    * <b>Elastic-Net</b>: combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\alpha)\times\mbox{Ridge}(\beta) + \alpha\times\mbox{Lasso}(\beta).$$
+    * <b>Lasso</b> (top left): force some of the coefficients to be equal to 0: $\Omega(\beta) = |\beta|^2$,
+    * <b>Ridge</b> (bottom): keep all coefficients in the same range, but no selection: $\Omega(\beta) = \|\beta\|_2^2$,
+
+    * <b>Elastic-Net</b> (top right): combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\alpha)\times\mbox{Ridge}(\beta) + \alpha\times\mbox{Lasso}(\beta).$$
 
 In this picture, the blue area represents the model constraints ($\Omega(\beta)<1/\lambda$).
 
@@ -222,7 +267,7 @@ set.seed(42)
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
-idx = sample(1:nfolds,nrow(obs),replace=TRUE) 
+idx = sample(1:nfolds,nrow(X),replace=TRUE) 
 
 #define alpha parameter
 alphas <- seq(from = 0, to = 1, by = 0.01)
@@ -233,10 +278,10 @@ mses <- rep(0,length(alphas))
 #loop over alpha values
 for(i in 1:length(alphas)){
   # cv.glmnet function does the CV loop for the different folds
-  cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) 
+  cvfits <- cv.glmnet(x=as.matrix(X[,-1]), y=X[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) 
   # for a given alpha, lambda is optimized inside cv.glmnet
-  preds.regul = predict(cvfits, newx = as.matrix(obs[,-1]), s = "lambda.min")
-  mses[i] <- mean((obs[,1] - preds.regul)^2)
+  preds.regul = predict(cvfits, newx = as.matrix(X[,-1]), s = "lambda.min")
+  mses[i] <- mean((X[,1] - preds.regul)^2)
 }
 this <- data.frame(mse=mses, alpha=alphas)
 
@@ -252,15 +297,15 @@ plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
   ggtitle("model error of highest performing regularized elastic-net
            regression as a function of alpha parameter") + 
        #add performances for linear regression without regularization
-          geom_hline(aes(yintercept=mean((obs[,1] - preds2)^2)),
+          geom_hline(aes(yintercept=mean((X[,1] - preds2)^2)),
                        size=0.2,linetype = 2,colour='dodgerblue4') +
        # add best alpha point
           geom_point(aes(x=best.alpha,y=min(this$mse)),color = 'red') +
-    geom_text(aes(x = 0.7, y = mean((obs[,1] - preds2)^2)+0.01*mean(range(this$mse)) , label = "Linear model (lambda = 0)"), colour = "dodgerblue4") + theme(legend.position="none")
+    geom_text(aes(x = 0.7, y = mean((X[,1] - preds2)^2)+0.01*mean(range(this$mse)) , label = "Linear model (lambda = 0)"), colour = "dodgerblue4") + theme(legend.position="none")
 plot1
 
 #retrain model with best_alpha
-cvfits <- cv.glmnet(x=as.matrix(obs[,-1]), y=obs[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
+cvfits <- cv.glmnet(x=as.matrix(X[,-1]), y=X[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
 
 # print best parameters pair
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
@@ -292,18 +337,18 @@ Here, we compare in a more numerical way the gain of applying regularization, co
 
 ```{r }
 #get preds for the best (alpha,lambda) pair
-preds.regul = predict(cvfits, newx = as.matrix(obs[,-1]), s = "lambda.min")
+preds.regul = predict(cvfits, newx = as.matrix(X.test[,-1]), s = "lambda.min")
 # In terms of Mean Square Error (MSE)
 # Linear Regression with all variables
-mean((obs[,1] - preds2)^2)
+mean((X.test[,1] - preds.test)^2)
 # Regularized Model
-mean((obs[,1] - preds.regul)^2)
+mean((X.test[,1] - preds.regul)^2)
 
 # Check the best Elastic-Net model
 coef.regul = coef(cvfits, s = "lambda.min")
 
 # Standard Linear Regression model
-coef.lm = coef(fit2)
+coef.lm = coef(final.fit)
 
 models = cbind(coef.regul,coef.lm)
 colnames(models)  = c('Regularized Model', 'Standard Linear Model')
