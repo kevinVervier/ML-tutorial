@@ -33,6 +33,7 @@ library(glmnet)
 First, we need to load the data we processed during the last session:
 ```{r }
 data <- read.csv('data/iris_processed.csv')
+# remove Species information for regression application
 obs <- data[,-1]
 ```
 
@@ -58,7 +59,7 @@ In this section, we will study how to get generalizable models, optimize method 
 
 # Code for a train/validation/test split and evaluation of two models
 # fix the randomness of the following lines, enable results reproducibility
-set.seed(42)
+set.seed(12345)
 # Generate random index
 idx.test = sample(c('non-test','test'),nrow(obs),replace=TRUE,prob = c(0.8,0.2))
 
@@ -164,6 +165,8 @@ cat('Model 2 error on Validation set:',mse2,'\n')
 cat('Best model (', best,') error on Test set:',mse.test,'\n')
 ```
 
+Using two different random splits already illustrates the variation you could expect from the train/validation approach.
+
 
 ### Cross-validation
 
@@ -171,7 +174,7 @@ cat('Best model (', best,') error on Test set:',mse.test,'\n')
     * randomly divide the data into $K$ equal-sized parts.
     * loop for $k$ in 1 to $K$: leave out the fold $k$ and fit the model to the other $K-1$ combined parts
     * obtain predictions on the $k$-th fold
-    * get cross-validation error estimation by combining all predictions (<b>100% of the data</b>).
+    * get cross-validation error estimation by combining all predictions.
     
 ![Source: http://bugra.github.io/work/notes/2014-11-22/an-introduction-to-supervised-learning-scikit-learn/](pic/cv.png) 
 
@@ -243,14 +246,14 @@ Here, we will cover one of them called <b> Regularization </b> approach (Section
 The feature selection occurs during the training step, by **regularizing/constraining coefficient estimates towards zero**.
 
 * Idea: minimize a linear regression with additional constraints on the model
-    $$ \min_\beta \mbox{Error}(X,Y,\beta) + \color{orange}{\lambda}\Omega(\beta),$$
+    $$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{orange}{\lambda}\color{CornflowerBlue}{\Omega}(\beta),$$
     where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
     
     and $\lambda$ is a constant that controls the trade-off between the fit and the constraints ($\lambda=0$ leads to standard linear regression).
     * <b>Lasso</b> (top left): force some of the coefficients to be equal to 0: $\Omega(\beta) = |\beta|^2$,
     * <b>Ridge</b> (bottom): keep all coefficients in the same range, but no selection: $\Omega(\beta) = \|\beta\|_2^2$,
 
-    * <b>Elastic-Net</b> (top right): combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\alpha)\times\mbox{Ridge}(\beta) + \alpha\times\mbox{Lasso}(\beta).$$
+    * <b>Elastic-Net</b> (top right): combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\color{ForestGreen}{\alpha})\times\mbox{Ridge}(\beta) + \color{ForestGreen}{\alpha}\times\mbox{Lasso}(\beta).$$
 
 In this picture, the blue area represents the model constraints ($\Omega(\beta)<1/\lambda$).
 
@@ -300,7 +303,7 @@ plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
           geom_hline(aes(yintercept=mean((X[,1] - preds2)^2)),
                        size=0.2,linetype = 2,colour='dodgerblue4') +
        # add best alpha point
-          geom_point(aes(x=best.alpha,y=min(this$mse)),color = 'red') +
+          geom_point(aes(x=best.alpha,y=min(this$mse)),color = 'darkgreen') +
     geom_text(aes(x = 0.7, y = mean((X[,1] - preds2)^2)+0.01*mean(range(this$mse)) , label = "Linear model (lambda = 0)"), colour = "dodgerblue4") + theme(legend.position="none")
 plot1
 
@@ -326,8 +329,8 @@ error.bars <-function(x, upper, lower, width = 0.02, ...)
 	segments(x - barw, lower, x + barw, lower, ...)
 }
 error.bars(log10(cvfits$lambda), cvfits$cvup, cvfits$cvlo, width = 0.01, col = "darkgrey")
-points(log10(cvfits$lambda), cvfits$cvm, pch = 20, col = "green")
-abline(v = log10(cvfits$lambda.min), lty = 2,col = 'red')
+points(log10(cvfits$lambda), cvfits$cvm, pch = 20, col = "black")
+abline(v = log10(cvfits$lambda.min), lty = 2,col = 'orange',lwd=2)
 
 ```
 
