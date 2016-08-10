@@ -67,7 +67,7 @@ X = obs[which(idx.test == 'non-test'),]
 X.test = obs[which(idx.test == 'test'),] # this test set will be used for all the evalutations in this session
 
 # define train/validation split
-idx.val = sample(c('train','val'),nrow(X),replace=TRUE,prob = c(0.8,0.2))
+idx.val = sample(c('train','val'),nrow(X),replace=TRUE,prob = c(0.75,0.25)) # 75% of 80 % is 60 %
 X.train = X[which(idx.val == 'train'),]
 X.val = X[which(idx.val == 'val'),]
 
