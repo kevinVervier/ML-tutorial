@@ -47,19 +47,25 @@ In this section, we will study how to get generalizable models, optimize method 
 * The test error is the average error obtained on a new observations set, not used in the training step.
 * Hold-out a subset of the training observations from the fitting process and estimate test error on it.
 * Here is how to use Train/Validation/Test <b><span style="color:#6495ED">rule of thumb</span></b>:
-    * Consider 60% of your data for fitting model
-    * 20% of the remaining data are used as validation set, especially if there is parameter optimization needed
-    * the last 20% of the data are the test/hold-out data, only used when the final model is fitted and estimates test error
+    * the first 20% of the data are the test/hold-out data, only used when the final model is fitted and estimates final error
+    
+    * The remaining 80 % are split in two parts: 60% of your data for fitting model
+    
+    * 20% of the remaining data are used as validation set (especially if there is parameter optimization needed)
+    
     * Main drawback: **use 20% of the data** to assess future model performance, so values highly depend of the random split.
    
 ![Source: http://images.slideplayer.com/17/5305651/slides/slide_14.jpg](pic/train_val_test.jpg) 
     
+Going back to our example of predicting Sepal length based on other flower measurements, we want to compare in a fair way the model using only sepal width and the model that uses all the features.   
     
 ```{r }
 
 # Code for a train/validation/test split and evaluation of two models
-# fix the randomness of the following lines, enable results reproducibility
+
+# (Advanced) fix the randomness of the following lines, enable results reproducibility
 set.seed(12345)
+
 # Generate random index
 idx.test = sample(c('non-test','test'),nrow(obs),replace=TRUE,prob = c(0.8,0.2))
 
@@ -246,20 +252,21 @@ Here, we will cover one of them called <b> Regularization </b> approach (Section
 The feature selection occurs during the training step, by **regularizing/constraining coefficient estimates towards zero**.
 
 * Idea: minimize a linear regression with additional constraints on the model
-    $$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{orange}{\lambda}\color{CornflowerBlue}{\Omega}(\beta),$$
+    $$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{CornflowerBlue}{\lambda}\color{orange}{\Omega}(\beta),$$
     where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
     
     and $\lambda$ is a constant that controls the trade-off between the fit and the constraints ($\lambda=0$ leads to standard linear regression).
-    * <b>Lasso</b> (top left): force some of the coefficients to be equal to 0: $\Omega(\beta) = |\beta|^2$,
-    * <b>Ridge</b> (bottom): keep all coefficients in the same range, but no selection: $\Omega(\beta) = \|\beta\|_2^2$,
+    * <b>Lasso</b> (top left): force some of the coefficients to be equal to 0: $\Omega(\beta) = \sum_i|\beta_i|$,
+    
+    * <b>Ridge</b> (bottom): keep all coefficients in the same range, but no selection: $\Omega(\beta) = \sum_i\beta_i^2$,
 
     * <b>Elastic-Net</b> (top right): combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\color{ForestGreen}{\alpha})\times\mbox{Ridge}(\beta) + \color{ForestGreen}{\alpha}\times\mbox{Lasso}(\beta).$$
 
-In this picture, the blue area represents the model constraints ($\Omega(\beta)<1/\lambda$).
+In this picture, the blue area is the constrained area ($\Omega(\beta)<1/\lambda$), which increases when $\lambda$ decreases.
 
 ![Inspired from An Introduction to Statistical Learning with Applications in R. ](pic/ridge_lasso_hm.png)
 
-Here is an example of cross-validation evaluation that deals with feature selection <b> and </b> parameter optimization (here, $\alpha$ and $\lambda$), using `glmnet` package.
+Here is an example of cross-validation evaluation that deals with feature selection <b> and </b> parameter optimization (here, $\color{ForestGreen}{\alpha}$ and $\color{CornflowerBlue}{\lambda}$), using `glmnet` package.
 
 ```{r }
 # Code for a cross-validation evaluation
@@ -330,7 +337,7 @@ error.bars <-function(x, upper, lower, width = 0.02, ...)
 }
 error.bars(log10(cvfits$lambda), cvfits$cvup, cvfits$cvlo, width = 0.01, col = "darkgrey")
 points(log10(cvfits$lambda), cvfits$cvm, pch = 20, col = "black")
-abline(v = log10(cvfits$lambda.min), lty = 2,col = 'orange',lwd=2)
+abline(v = log10(cvfits$lambda.min), lty = 2,col = 'cornflowerblue',lwd=2)
 
 ```
 
@@ -369,7 +376,7 @@ Sometimes regularization is not largely outperforming standard Linear Regression
 When fitting the model for estimating sepal length, we did not use the iris species as a cofactor for the linear model. But is it useful to include it ?
 
 * Plot the sepal length as a function of iris species (*Hint*: boxplot),
-* Add dummy (binary) variables to iris dataset that represent species (*Hint*: 2 of them are enough),
+* Add dummy (binary) variables to iris dataset that represent species (*Hint*: isSetosa?, isVersicolor?, isVirginica?),
 * Fit linear model on this new data set (*Hint*: using cross-validation and regularization).
 * Demonstrate if the species is an important cofactor to include or not
 
