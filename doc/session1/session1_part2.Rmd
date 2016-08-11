@@ -39,7 +39,7 @@ obs <- data[,-1]
 
 ## Model Selection and Regularization
 
-In this section, we will study how to get generalizable models, optimize method parameters and how to evaluate/compare different models.
+In this section, we will study how to get generalizable models and how to evaluate/compare different models.
 
 ### Train/Validation/Test sets
 
@@ -51,7 +51,7 @@ In this section, we will study how to get generalizable models, optimize method 
     
     * The remaining 80 % are split in two parts: 60% of your data for fitting model
     
-    * 20% of the remaining data are used as validation set (especially if there is parameter optimization needed)
+    * 20% of the remaining data are used as validation set
     
     * Main drawback: **use 20% of the data** to assess future model performance, so values highly depend of the random split.
    
@@ -239,7 +239,11 @@ print(mse.test)
 
 ```
 
-By using one of these approaches, you avoid overfitting and get a fair way to compare model at the same time.
+By using one of these approaches, you decrease the risk of overfitting and get a fair way to compare models, using the same held-out data.
+
+Also, approaches more complex than linear regression rely on parameters (more examples in the next session) that require to be optimized. 
+
+Usually, there is no prior on the best values and people also **use the validation set to find the best parameters** for their approach.  
 
 ---
 
@@ -248,21 +252,26 @@ By using one of these approaches, you avoid overfitting and get a fair way to co
 We already checked with `iris` linear regression example that it can be cumbersome to try every possible combination of features in your model.
 
 Good news! There is more systematic ways to select the most meaningful features in your model (cf Section 6).
-Here, we will cover one of them called <b> Regularization </b> approach (Section 6.2)
+
+Here, we will cover one of them called <b> Regularization </b> approach (Section 6.2).
+
 The feature selection occurs during the training step, by **regularizing/constraining coefficient estimates towards zero**.
 
-* Idea: minimize a linear regression $$Y = \beta_0 + \beta_1\times X_1 + ... + \epsilon,$$
+* Idea: minimize a linear regression problem $$Y = \beta_0 + \beta_1\times X_1 + ... + \epsilon,$$
 
 with additional constraints on the model
-    $$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{CornflowerBlue}{\lambda}\color{orange}{\Omega}(\beta),$$
-    where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
-    
-    and $\lambda$ is a constant that controls the trade-off between the fit and the constraints ($\lambda=0$ leads to standard linear regression).
-    * <b>Lasso</b> (top left): force some of the coefficients to be equal to 0: $\Omega(\beta) = \sum_i|\beta_i|$,
-    
-    * <b>Ridge</b> (bottom): keep all coefficients in the same range, but no selection: $\Omega(\beta) = \sum_i\beta_i^2$,
 
-    * <b>Elastic-Net</b> (top right): combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\color{ForestGreen}{\alpha})\times\mbox{Ridge}(\beta) + \color{ForestGreen}{\alpha}\times\mbox{Lasso}(\beta).$$
+$$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{CornflowerBlue}{\lambda}\color{orange}{\Omega}(\beta),$$
+    
+where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
+    
+and $\lambda$ is a constant that controls the trade-off between the fit and the constraints ($\lambda=0$ leads to standard linear regression).
+
+* <b>Lasso</b> (top left): force some of the coefficients to be equal to 0: $\Omega(\beta) = \sum_i|\beta_i|$,
+    
+* <b>Ridge</b> (bottom): keep all coefficients in the same range, but no selection: $\Omega(\beta) = \sum_i\beta_i^2$,
+
+* <b>Elastic-Net</b> (top right): combination of Ridge and Lasso, leading to sparse model and better handling correlated predictors $$\mbox{Elastic_Net}(\beta) = (1-\color{ForestGreen}{\alpha})\times\mbox{Ridge}(\beta) + \color{ForestGreen}{\alpha}\times\mbox{Lasso}(\beta).$$
 
 In this picture, the blue area is the constrained area ($\Omega(\beta)<1/\lambda$), which increases when $\lambda$ decreases.
 
