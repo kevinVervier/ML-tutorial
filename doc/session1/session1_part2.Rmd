@@ -251,7 +251,9 @@ Good news! There is more systematic ways to select the most meaningful features 
 Here, we will cover one of them called <b> Regularization </b> approach (Section 6.2)
 The feature selection occurs during the training step, by **regularizing/constraining coefficient estimates towards zero**.
 
-* Idea: minimize a linear regression with additional constraints on the model
+* Idea: minimize a linear regression $$Y = \beta_0 + \beta_1\times X_1 + ... + \epsilon,$$
+
+with additional constraints on the model
     $$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{CornflowerBlue}{\lambda}\color{orange}{\Omega}(\beta),$$
     where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
     

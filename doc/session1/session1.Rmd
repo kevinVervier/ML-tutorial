@@ -155,9 +155,9 @@ Based on <b><span style="color:#6495ED">training data</span></b> which are pairs
 
 ## Linear Regression
 
-* Simple approach for supervised learning that assumes a linear dependence between $Y$ and $X$, meaning that there exists constant weights $w_i$ for each predictor, such as $$Y = w_0 + w_1\times X_1 + ... + \epsilon,$$
+* Simple approach for supervised learning that assumes a linear dependence between $Y$ and $X$, meaning that there exists constant weights $\beta_i$ for each predictor, such as $$Y = \beta_0 + \beta_1\times X_1 + ... + \epsilon,$$
 
-where $w_0$ represents the bias in the data, and $\epsilon$ is a random noise that is not captured by the predictors.
+where $\beta_0$ represents the bias in the data, and $\epsilon$ is a random noise that is not captured by the predictors.
 
 * This approach works well when $Y$ is a numeric variable, but we will see an alternative approach for qualitative output.
 * Although it may seem overly simplistic, linear regression is extremely useful both conceptually and practically.
