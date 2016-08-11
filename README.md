@@ -1,6 +1,9 @@
 # ML-tutorial
 UIHC machine learning tutorial
 
+The 'doc' repository contains the 3 sessions Rmarkdown files.
+If you open one of these files in Rstudio, you have the option to 'Knit' it and it will generate an HTML document containing R commands.
+
 Important: if you plan to run the Shiny application, you want to install the following R packages:
 * shiny: interactive user interface running in R
 * glmnet: generalized linear model with Elastic-Net implementation
