@@ -30,7 +30,7 @@ library(randomForest)
 # performance measures
 library(ROCR)
 ```
-# Session 1 debriefing + homework 
+# Session 1 (and 1.5) debriefing + homework 
 
 First, we need to load the data we processed during the last session:
 ```{r }
@@ -51,9 +51,6 @@ dummy[which(data$species == 'setosa'),1] = 1
 dummy[which(data$species == 'versicolor'),2] = 1
 # virginica will be encoded by 0 in both columns
 
-#even if dummy variables are binary, we may want to scale them
-dummy = scale(dummy,center = TRUE,scale=TRUE)
-
 #merge both datasets
 data_with_dummy = cbind(data,dummy)
 #remove species column (redundant)
@@ -64,11 +61,22 @@ data_with_dummy$species = NULL
 
 ```{r}
 # Code for a cross-validation evaluation
-set.seed(42) # fix random seed for reproducible results
+
+# (Advanced) fix the randomness of the following lines, enable results reproducibility --> getting the same test than last session
+set.seed(12345)
+
+# Generate random index
+idx.test = sample(c('non-test','test'),nrow(data_with_dummy),replace=TRUE,prob = c(0.8,0.2))
+
+# split observations in test/non-test sets
+X = data_with_dummy[which(idx.test == 'non-test'),]
+X.test = data_with_dummy[which(idx.test == 'test'),] # this test set will be used for all the evalutations in this session
+
 # Number of folds/rounds
 nfolds = 10
 # Generate random index
-idx = sample(1:nfolds,nrow(data_with_dummy),replace=TRUE)
+set.seed(42) # same 10-folds than in the previous session
+idx = sample(1:nfolds,nrow(X),replace=TRUE)
 
 #define alpha parameter
 alphas <- seq(from = 0, to = 1, by = 0.01)
@@ -79,41 +87,44 @@ mses <- rep(0,length(alphas))
 #loop over alpha values
 for(i in 1:length(alphas)){
    # cv.glmnet function does the CV loop for the different folds
-  cvfits <- cv.glmnet(x=as.matrix(data_with_dummy[,-1]), y=data_with_dummy[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) # for a given alpha, lambda is optimized inside cv.glmnet
-  preds.regul = predict(cvfits, newx = as.matrix(data_with_dummy[,-1]), s = "lambda.min")
-  mses[i] <- mean((data_with_dummy[,1] - preds.regul)^2)
+  cvfits <- cv.glmnet(x=as.matrix(X[,-1]), y=X[,1], alpha=alphas[i], nfolds=nfolds,foldid=idx) # for a given alpha, lambda is optimized inside cv.glmnet
+  preds.regul = predict(cvfits, newx = as.matrix(X[,-1]), s = "lambda.min")
+  mses[i] <- mean((X[,1] - preds.regul)^2)
 }
 this <- data.frame(mse=mses, alpha=alphas)
 
+#get best model among alpha-range
+best.alpha = alphas[which.min(mses)]
+
+# figure of alpha parameter impact
 plot1 <- ggplot(this, aes(x=alpha, y=mse)) +
   geom_line() +
   ylab("CV mean squared error") +
   xlab("alpha parameter") +
   ggtitle("model error of highest performing regularized elastic-net
-           regression as a function of alpha parameter")
+           regression as a function of alpha parameter") + 
+       #add performances for regularized model without species information (obtained in session 1_part2)
+          geom_hline(aes(yintercept=0.08453256), 
+                       size=0.2,linetype = 2,colour='darkorange') +
+       # add best alpha point
+          geom_point(aes(x=best.alpha,y=min(this$mse)),color = 'darkgreen') +
+    geom_text(aes(x = 0.7, y = 0.08453256+0.01*mean(range(this$mse)) , label = "Regularized model (no species info)"), colour = "darkorange") + theme(legend.position="none")
 plot1
 
-#get best model among alpha-range
-best.alpha = alphas[tail(which(mses == min(mses)),1)]
 #retrain model with best_alpha
-cvfits <- cv.glmnet(x=as.matrix(data_with_dummy[,-1]), y=data_with_dummy[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
+cvfits <- cv.glmnet(x=as.matrix(X[,-1]), y=X[,1], alpha=best.alpha, nfolds=nfolds,foldid=idx)
 
 # print best parameters pair
 cat('Best alpha:',best.alpha,' and best lambda:',cvfits$lambda.min,'\n')
 
 #get preds for the best (alpha,lambda) pair
-preds.regul = predict(cvfits, newx = as.matrix(data_with_dummy[,-1]), s = "lambda.min")
+preds.test = predict(cvfits, newx = as.matrix(X.test[,-1]), s = "lambda.min")
 #Check the best model content
 coef(cvfits, s = "lambda.min")
 
-# Simple Linear Model trained with all the features
-cor(data_with_dummy[,1],preds.regul) 
-
-#NB: session 1 best model achieved cor = 0.926916
-
 # Regularized Model
-mean((data_with_dummy[,1] - preds.regul)^2)
-#NB: session 1 best model achieved mse = 0.09592393
+mean((X.test[,1] - preds.test)^2)
+#NB: session 1 best model achieved mse = 0.1370083 on test
 
 ```
 
@@ -125,7 +136,7 @@ This concludes Homework 1. Now, Session 2 is about to start !
 # Classification methods
 
 * Talking about classification refers to having qualitative response $Y$ that belongs to a finite set of <b>labels/classes</b>.
-* Why not Liner Regression ? 
+* Why not Linear Regression ? 
     * Example: Suppose that we are trying to predict the medical condition of a patient in the emergency room on the basis of her symptoms, where there are only three possible diagnoses: *stroke*, *drug overdose*, and *epileptic seizure*. We could consider encoding these values as a quantitative response variable, $Y$, as follows:
 
 $$ \left\{ \begin{array}{ll} 1 & \text{ if stroke,} \\ 2 & \text{ if drug overdose,} \\ 3 & \text{ if epileptic seizure} \end{array}\right.$$
@@ -134,11 +145,11 @@ Using this coding, least squares could be used to fit a linear regression model.
 this coding implies an ordering on the outcomes. (*Quizz*) So why linear regression is not a good idea here ? 
 
 So what are the alternative solutions for classification ?
-There is two ways of thinking in classification: do you want to predict the class label and/or do you want a estimated probability of this class prediction ?
+There is <b> two ways of thinking in classification</b>: do you want to predict the class label and/or do you want a estimated probability of this class prediction ?
 
 In the following sections, we will review standard classification algorithms with their own strategy/decision rule. For demonstration purpose, we will apply them to the `iris` data set in its standard use: <b> Is it possible to predict to which species a new flower belongs ?</b>
 
-However, we will keep things simple by considering only the first two classes $\Rightarrow$ binary classification.
+However, we will keep things simple by considering only the first two classes $\Rightarrow$ **binary classification**.
 
 If your data contains more than two classes, there is multiple ways to extend binary classification to multiclass classification (One-versus-All, One-versus-One, ...). Most of the time, there is additional parameters to provide when you call the function, but the function name remains the same (cf function doc).
 
@@ -149,14 +160,19 @@ data = data[which(data$species == 'setosa' | data$species == 'versicolor'),]
 data$species = factor(data$species)
 ```
 
+<b>Important</b>: in this session, <b>no cross-validation</b> will be used to find optimal parameters ! It will be your job to implement that in the last session.
 
 ## Logistic regression (Chapter 4.3)
 * Variation of the Linear Regression for classification purpose.
 * Rather than modeling the response $Y$ directly, logistic regression models the probability (from 0 to 1) that $Y$ belongs to a particular category.
 
+$$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \color{CornflowerBlue}{\lambda}\color{orange}{\Omega}(\beta),$$
+    
+where $\mbox{Error}$ has high value if the estimated class probability is wrong.
+
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (9.2.2).](pic/logreg.png)
 
-* Here, we use a similar framework to linear regression, called Generalized Linear Model (`glmnet`):
+* Here, we use a similar framework to linear regression, called Generalized Linear Model (`glm`):
 
 ```{r}
 fit <- glmnet(x=as.matrix(data[,-1]), y=data[,1],family="binomial",alpha = 0.5)
@@ -180,17 +196,25 @@ text(x+1, y, labels=labs)
 * It is unlikely that your real-world data are perfectly separable.
 * SVMs introduce the concept of margin between different classes and cast it in an regularization framework.
 
+$$ \min_\beta \color{red}{\mbox{Error}}(X,Y,\beta) + \frac{1}{\color{CornflowerBlue}{cost}}\color{orange}{\Omega}(\beta),$$
+    
+where $\Omega(\beta)$ is a function that has higher value for $\beta$ not respecting the constraints,
+
+and $\mbox{Error}$ measures the distance to the margin (if on the <b>wrong side</b>),   
+
+and $cost$ is a constant that controls the trade-off between the fit and the constraints.
+
 ![<b>Source</b>: An Introduction to Statistical Learning with Applications in R (9.2.2).](pic/svm.png)
 
 * There is different `R` packages for SVM, that rely on subtle variations around the main concept.
 * In this tutorial, we will use `LiblineaR` package, where you may want to optimize at least 1 parameter:
     * `cost` determines the trade-off between the margin fit and the misclassification tolerance (high value $\Rightarrow$ more tolerance),
-    * Advanced: `type` parameter determines the loss and regularization functions. you can for instance do logistic regression, or use a Lasso,
+    * Advanced: `type` parameter determines the choice of \color{red}{\mbox{Error}} and \color{orange}{\Omega}. You can for instance do logistic regression, or use a Lasso,
     * Advanced: it is possible to use 'kernel' transformation, when facing data not separable with a linear model (section 9.3.1).
     
 ```{r}
 # standard command
-m.svm <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2)
+m.svm <- LiblineaR(data=as.matrix(data[,-1]), target=data[,1],cost = 1, type = 2) #type=2 corresponds to the common SVM formulation.
 # show model weights
 m.svm$W
 ```
